@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Legavora - Full Service Literary Agency and Book Production House. From manuscript to lasting career.">
+<meta name="keywords" content="literary agency, book production, author services, publishing, book marketing, editorial services, Legavora">
+<meta name="author" content="Legavora">
+<meta property="og:title" content="Legavora | Literary Agency & Book Production House">
+<meta property="og:description" content="Build Your Book Into a Career. Full service literary agency covering every area of author success.">
+<meta property="og:image" content="legavora.png">
+<meta property="og:type" content="website">
+<title>Legavora | Literary Agency & Book Production House</title>
+<link rel="icon" type="image/png" href="legavora.png">
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+/* =============================================
+   CSS VARIABLES
+============================================= */
+:root {
+  --navy: #0B1622;
+  --navy-deep: #060D15;
+  --navy-light: #0F1F30;
+  --navy-medium: #132840;
+  --gold: #C9A84C;
+  --gold-light: #E2CA7E;
+  --gold-dark: #A8882E;
+  --gold-glow: rgba(201,168,76,0.18);
+  --ivory: #F5F0E8;
+  --ivory-light: #FBF8F3;
+  --ivory-dark: #E8E0D2;
+  --slate: #5A6577;
+  --slate-light: #7E8B9E;
+  --white: #FFFFFF;
+  --amazon-orange: #FF9900;
+  --shadow-gold: 0 4px 30px rgba(201,168,76,0.22);
+  --transition: all 0.4s cubic-bezier(0.25,0.8,0.25,1);
+}
+
+/* =============================================
+   RESET
+============================================= */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:16px;overflow-x:hidden}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--ivory);line-height:1.8;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{text-decoration:none;color:inherit;transition:var(--transition)}
+ul{list-style:none}
+::selection{background:var(--gold);color:var(--navy)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--navy-deep)}
+::-webkit-scrollbar-thumb{background:var(--gold);border-radius:3px}
+
+/* Typography */
+h1,h2,h3,h4,h5{font-family:'Playfair Display',serif;line-height:1.15}
+
+/* =============================================
+   PRELOADER
+============================================= */
+.preloader{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:var(--navy-deep);z-index:99999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity 1s ease,visibility 1s ease;
+}
+.preloader.hide{opacity:0;visibility:hidden;pointer-events:none}
+.preloader-logo-img{width:80px;height:auto;margin-bottom:20px;animation:prePulse 2s ease-in-out infinite}
+.preloader-text{
+  font-family:'Playfair Display',serif;font-size:36px;font-weight:700;
+  color:var(--gold);letter-spacing:10px;text-transform:uppercase;margin-bottom:30px;
+}
+.preloader-bar-wrap{width:180px;height:2px;background:rgba(201,168,76,0.12);border-radius:2px;overflow:hidden}
+.preloader-bar{width:0;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light),var(--gold));border-radius:2px;animation:preBar 2.2s ease forwards}
+.preloader-sub{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:rgba(201,168,76,0.4);margin-top:18px;letter-spacing:3px}
+
+@keyframes prePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.95)}}
+@keyframes preBar{0%{width:0}100%{width:100%}}
+
+/* =============================================
+   CURSOR GLOW
+============================================= */
+.cursor-glow{
+  position:fixed;width:280px;height:280px;
+  background:radial-gradient(circle,rgba(201,168,76,0.06) 0%,transparent 70%);
+  pointer-events:none;z-index:9990;border-radius:50%;
+  transform:translate(-50%,-50%);transition:opacity 0.3s;
+}
+
+/* =============================================
+   NAVIGATION
+============================================= */
+.navbar{
+  position:fixed;top:0;left:0;right:0;z-index:5000;
+  background:rgba(6,13,21,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(201,168,76,0.1);
+  height:78px;display:flex;align-items:center;padding:0 50px;justify-content:space-between;
+  transition:var(--transition);
+}
+.navbar.scrolled{height:60px;background:rgba(6,13,21,0.97);border-bottom-color:rgba(201,168,76,0.2)}
+
+.nav-brand{display:flex;align-items:center;gap:12px;cursor:pointer}
+.nav-brand-img{height:38px;width:auto;transition:transform 0.3s}
+.nav-brand:hover .nav-brand-img{transform:scale(1.05)}
+.nav-brand-text{font-family:'Playfair Display',serif;font-weight:700;font-size:20px;color:var(--ivory);letter-spacing:4px;text-transform:uppercase}
+.nav-brand-sub{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:9.5px;color:var(--gold);letter-spacing:1.5px;display:block;margin-top:-3px}
+
+.nav-menu{display:flex;align-items:center;gap:32px}
+.nav-menu a{
+  font-size:11px;font-weight:500;color:rgba(245,240,232,0.6);
+  letter-spacing:2px;text-transform:uppercase;position:relative;padding:4px 0;
+}
+.nav-menu a::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--gold);transition:width 0.4s}
+.nav-menu a:hover{color:var(--gold)}
+.nav-menu a:hover::after{width:100%}
+
+.nav-apply{
+  border:1px solid var(--gold)!important;padding:9px 22px!important;
+  color:var(--gold)!important;position:relative;overflow:hidden;
+}
+.nav-apply::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:var(--gold);transition:left 0.35s;z-index:-1}
+.nav-apply:hover{color:var(--navy)!important}
+.nav-apply:hover::before{left:0}
+.nav-apply::after{display:none!important}
+
+/* Hamburger */
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;z-index:5001}
+.hamburger span{width:26px;height:2px;background:var(--gold);transition:var(--transition)}
+.hamburger.open span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+
+.mobile-overlay{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100vh;
+  background:rgba(6,13,21,0.97);backdrop-filter:blur(20px);
+  z-index:4999;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  opacity:0;transition:opacity 0.4s;
+}
+.mobile-overlay.open{display:flex;opacity:1}
+.mobile-overlay a{font-family:'Playfair Display',serif;font-size:26px;color:var(--ivory);letter-spacing:3px;text-transform:uppercase}
+.mobile-overlay a:hover{color:var(--gold)}
+
+/* =============================================
+   BUTTONS
+============================================= */
+.btn-gold{
+  display:inline-block;background:var(--gold);color:var(--navy);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:2.5px;text-transform:uppercase;padding:17px 44px;
+  border:none;cursor:pointer;transition:var(--transition);border-radius:1px;
+  position:relative;overflow:hidden;
+}
+.btn-gold::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent);transition:left 0.5s}
+.btn-gold:hover{background:var(--gold-dark);transform:translateY(-3px);box-shadow:var(--shadow-gold)}
+.btn-gold:hover::before{left:100%}
+
+.btn-outline{
+  display:inline-block;background:transparent;color:var(--gold);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:2.5px;text-transform:uppercase;padding:16px 44px;
+  border:1px solid var(--gold);cursor:pointer;transition:var(--transition);border-radius:1px;
+}
+.btn-outline:hover{background:var(--gold);color:var(--navy);transform:translateY(-3px);box-shadow:var(--shadow-gold)}
+
+.btn-dark{
+  display:inline-block;background:var(--navy);color:var(--ivory);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  letter-spacing:2.5px;text-transform:uppercase;padding:17px 44px;
+  border:none;cursor:pointer;transition:var(--transition);border-radius:1px;
+}
+.btn-dark:hover{background:var(--navy-deep);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.3)}
+
+/* =============================================
+   SECTION LABEL
+============================================= */
+.sec-label{display:flex;align-items:center;gap:14px;margin-bottom:28px}
+.sec-label.center{justify-content:center}
+.sec-label::before,.sec-label::after{content:'';width:44px;height:1px;background:var(--gold)}
+.sec-label span{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:4px;text-transform:uppercase}
+
+/* =============================================
+   SCROLL REVEAL
+============================================= */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity 0.8s cubic-bezier(0.4,0,0.2,1),transform 0.8s cubic-bezier(0.4,0,0.2,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-left{opacity:0;transform:translateX(-50px);transition:opacity 0.8s ease,transform 0.8s ease}
+.reveal-left.visible{opacity:1;transform:translateX(0)}
+.reveal-right{opacity:0;transform:translateX(50px);transition:opacity 0.8s ease,transform 0.8s ease}
+.reveal-right.visible{opacity:1;transform:translateX(0)}
+.reveal-scale{opacity:0;transform:scale(0.92);transition:opacity 0.7s ease,transform 0.7s ease}
+.reveal-scale.visible{opacity:1;transform:scale(1)}
+
+/* Stagger children */
+.stagger-children > *{opacity:0;transform:translateY(30px);transition:opacity 0.6s ease,transform 0.6s ease}
+.stagger-children.visible > *:nth-child(1){transition-delay:0.05s}
+.stagger-children.visible > *:nth-child(2){transition-delay:0.15s}
+.stagger-children.visible > *:nth-child(3){transition-delay:0.25s}
+.stagger-children.visible > *:nth-child(4){transition-delay:0.35s}
+.stagger-children.visible > *:nth-child(5){transition-delay:0.45s}
+.stagger-children.visible > *{opacity:1;transform:translateY(0)}
+
+/* =============================================
+   FLOATING PARTICLES
+============================================= */
+.particles-container{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none}
+.particle{
+  position:absolute;width:2px;height:2px;background:var(--gold);border-radius:50%;
+  opacity:0;animation:floatUp linear infinite;
+}
+@keyframes floatUp{
+  0%{transform:translateY(100vh) rotate(0deg);opacity:0}
+  8%{opacity:0.25}
+  92%{opacity:0.25}
+  100%{transform:translateY(-30px) rotate(720deg);opacity:0}
+}
+
+/* =============================================
+   HERO
+============================================= */
+.hero{
+  min-height:100vh;background:var(--navy);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:130px 50px 80px;position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'LEGAVORA';position:absolute;
+  font-family:'Playfair Display',serif;font-weight:900;font-size:250px;
+  color:rgba(201,168,76,0.02);letter-spacing:18px;
+  top:50%;left:50%;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;
+}
+.hero::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at center top,rgba(201,168,76,0.05) 0%,transparent 60%);pointer-events:none;
+}
+.hero-content{position:relative;z-index:2;max-width:840px}
+.hero-logo{
+  width:110px;height:auto;margin:0 auto 36px;
+  filter:drop-shadow(0 0 24px rgba(201,168,76,0.3));
+  animation:logoPulse 3.5s ease-in-out infinite;
+}
+@keyframes logoPulse{
+  0%,100%{filter:drop-shadow(0 0 24px rgba(201,168,76,0.3))}
+  50%{filter:drop-shadow(0 0 44px rgba(201,168,76,0.55))}
+}
+.hero h1{font-size:68px;font-weight:700;color:var(--ivory);margin-bottom:26px;line-height:1.06}
+.hero h1 .accent{color:var(--gold);position:relative}
+.hero h1 .accent::after{content:'';position:absolute;bottom:-5px;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.hero-sub{font-family:'Cormorant Garamond',serif;font-size:21px;color:rgba(245,240,232,0.55);max-width:600px;margin:0 auto 48px;line-height:1.7}
+.hero-btns{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+.hero-contact{margin-top:22px;font-size:12px;color:rgba(245,240,232,0.35);letter-spacing:1px}
+.hero-contact a{color:var(--gold)}
+.hero-badges{
+  display:flex;align-items:center;gap:40px;margin-top:72px;
+  padding-top:40px;border-top:1px solid rgba(201,168,76,0.12);flex-wrap:wrap;justify-content:center;
+}
+.hero-badge{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:3px;text-transform:uppercase}
+.hero-badge-sep{width:1px;height:24px;background:rgba(201,168,76,0.2)}
+
+/* =============================================
+   TRUST BAR
+============================================= */
+.trust-bar{
+  background:var(--navy-deep);
+  border-top:1px solid rgba(201,168,76,0.06);border-bottom:1px solid rgba(201,168,76,0.06);
+  padding:36px 50px;
+}
+.trust-bar-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:50px;flex-wrap:wrap}
+.trust-item{display:flex;align-items:center;gap:10px}
+.trust-icon{
+  width:34px;height:34px;border:1px solid rgba(201,168,76,0.25);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:13px;flex-shrink:0;
+}
+.trust-text{font-size:10.5px;font-weight:600;color:rgba(245,240,232,0.4);letter-spacing:1.8px;text-transform:uppercase}
+
+/* =============================================
+   PROBLEM SECTION
+============================================= */
+.sec-problem{background:var(--ivory);padding:130px 50px}
+.problem-grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start}
+.problem-heading{font-size:44px;color:var(--navy);margin-bottom:24px;line-height:1.1}
+.problem-body{font-size:16px;color:var(--slate);line-height:1.85}
+.problem-cards{display:flex;flex-direction:column;gap:10px}
+.problem-card{
+  background:var(--ivory-light);border-left:3px solid var(--gold);padding:20px 24px;
+  transition:var(--transition);cursor:default;
+}
+.problem-card:hover{background:var(--white);transform:translateX(8px);box-shadow:0 4px 20px rgba(0,0,0,0.06)}
+.problem-card p{font-size:14px;font-weight:500;color:var(--navy);line-height:1.5}
+
+/* =============================================
+   SOLUTION SECTION
+============================================= */
+.sec-solution{background:var(--navy);padding:130px 50px;text-align:center;position:relative;overflow:hidden}
+.sec-solution::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(201,168,76,0.035) 0%,transparent 60%)}
+.solution-inner{max-width:840px;margin:0 auto;position:relative;z-index:1}
+.solution-heading{font-size:50px;color:var(--ivory);margin:20px 0 28px;line-height:1.08}
+.solution-body{font-family:'Cormorant Garamond',serif;font-size:20px;color:rgba(245,240,232,0.55);line-height:1.75;margin-bottom:64px}
+.solution-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.solution-card{
+  background:rgba(245,240,232,0.035);border:1px solid rgba(201,168,76,0.12);
+  padding:36px 24px;text-align:center;transition:var(--transition);
+}
+.solution-card:hover{background:rgba(245,240,232,0.06);border-color:rgba(201,168,76,0.3);transform:translateY(-4px)}
+.solution-card-icon{
+  width:50px;height:50px;border:1px solid rgba(201,168,76,0.25);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
+  color:var(--gold);font-size:18px;transition:var(--transition);
+}
+.solution-card:hover .solution-card-icon{background:rgba(201,168,76,0.1);border-color:var(--gold)}
+.solution-card-title{font-size:11px;font-weight:600;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px}
+.solution-card-body{font-size:13px;color:rgba(245,240,232,0.45)}
+
+/* =============================================
+   FOUR PILLARS
+============================================= */
+.sec-pillars{background:var(--ivory);padding:130px 50px}
+.pillars-inner{max-width:1180px;margin:0 auto}
+.sec-header{text-align:center;margin-bottom:72px}
+.sec-header h2{font-size:46px;color:var(--navy);margin:16px 0}
+.sec-header .desc{font-family:'Cormorant Garamond',serif;font-size:19px;color:var(--slate);max-width:560px;margin:0 auto}
+.pillars-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;background:rgba(201,168,76,0.06)}
+.pillar-card{
+  background:var(--navy);padding:52px 44px;position:relative;overflow:hidden;transition:var(--transition);
+}
+.pillar-card:hover{background:var(--navy-light)}
+.pillar-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+  background:var(--gold);transform:scaleX(0);transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);transform-origin:left;
+}
+.pillar-card:hover::after{transform:scaleX(1)}
+.pillar-num{
+  font-family:'Playfair Display',serif;font-size:85px;font-weight:900;
+  color:rgba(201,168,76,0.05);position:absolute;top:8px;right:24px;line-height:1;
+}
+.pillar-label{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:18px;display:block}
+.pillar-card h3{font-size:24px;color:var(--ivory);margin-bottom:14px;position:relative;z-index:1}
+.pillar-card > p{font-size:14px;color:rgba(245,240,232,0.55);line-height:1.8;position:relative;z-index:1;margin-bottom:20px}
+.pillar-list{position:relative;z-index:1}
+.pillar-list li{
+  font-size:13px;color:rgba(245,240,232,0.4);padding:6px 0;
+  border-bottom:1px solid rgba(201,168,76,0.06);
+  display:flex;align-items:center;gap:9px;transition:color 0.3s;
+}
+.pillar-card:hover .pillar-list li{color:rgba(245,240,232,0.55)}
+.pillar-list li::before{content:'';width:4px;height:4px;background:var(--gold);border-radius:50%;flex-shrink:0}
+.pillar-more{
+  display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;
+  color:var(--gold);letter-spacing:2px;text-transform:uppercase;
+  margin-top:24px;cursor:pointer;background:none;border:none;transition:gap 0.3s;position:relative;z-index:1;
+}
+.pillar-more:hover{gap:12px}
+
+/* =============================================
+   FOUNDER SECTION
+============================================= */
+.sec-founder{background:var(--navy-deep);padding:130px 50px;position:relative;overflow:hidden}
+.sec-founder::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 50%,rgba(201,168,76,0.035) 0%,transparent 55%)}
+.founder-grid{
+  max-width:1180px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;
+  gap:72px;align-items:center;position:relative;z-index:1;
+}
+.founder-img-wrap{position:relative}
+.founder-img{
+  width:100%;height:480px;object-fit:cover;
+  border:1px solid rgba(201,168,76,0.15);filter:grayscale(15%);transition:filter 0.5s;
+}
+.founder-img:hover{filter:grayscale(0%)}
+.founder-img-wrap::before{content:'';position:absolute;top:-10px;left:-10px;width:70px;height:70px;border-top:2px solid var(--gold);border-left:2px solid var(--gold)}
+.founder-img-wrap::after{content:'';position:absolute;bottom:-10px;right:-10px;width:70px;height:70px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold)}
+.founder-info h2{font-size:42px;color:var(--ivory);margin:20px 0}
+.founder-role{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;color:var(--gold);margin-bottom:24px}
+.founder-info p{font-size:15px;color:rgba(245,240,232,0.6);line-height:1.85;margin-bottom:18px}
+.founder-sig{font-family:'Playfair Display',serif;font-style:italic;font-size:26px;color:var(--gold);margin-top:28px;opacity:0.65}
+
+/* =============================================
+   OPERATING MODEL
+============================================= */
+.sec-model{background:var(--navy);padding:130px 50px;position:relative;overflow:hidden}
+.sec-model::before{
+  content:'LEGAVORA';position:absolute;font-family:'Playfair Display',serif;font-weight:900;font-size:180px;
+  color:rgba(201,168,76,0.015);top:50%;left:50%;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;
+}
+.model-grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:90px;align-items:center;position:relative;z-index:1}
+.model-info h2{font-size:42px;color:var(--ivory);margin:20px 0 24px}
+.model-info p{font-size:15px;color:rgba(245,240,232,0.6);line-height:1.85;margin-bottom:18px}
+.model-points{display:flex;flex-direction:column;gap:12px;margin-top:36px}
+.model-point{
+  display:flex;align-items:center;gap:14px;padding:16px 22px;
+  border:1px solid rgba(201,168,76,0.1);background:rgba(245,240,232,0.015);transition:var(--transition);
+}
+.model-point:hover{border-color:rgba(201,168,76,0.25);background:rgba(245,240,232,0.03);transform:translateX(6px)}
+.model-dot{width:7px;height:7px;background:var(--gold);border-radius:50%;flex-shrink:0}
+.model-point span{font-size:13px;font-weight:500;color:var(--ivory)}
+.model-stats{display:flex;flex-direction:column;gap:18px}
+.model-stat{
+  text-align:center;padding:40px;border:1px solid rgba(201,168,76,0.12);
+  background:rgba(245,240,232,0.015);transition:var(--transition);
+}
+.model-stat:hover{border-color:rgba(201,168,76,0.35);background:rgba(245,240,232,0.03)}
+.model-stat-num{font-family:'Playfair Display',serif;font-size:48px;font-weight:700;color:var(--gold);line-height:1}
+.model-stat-label{font-size:10px;font-weight:500;color:rgba(245,240,232,0.35);letter-spacing:2.5px;text-transform:uppercase;margin-top:12px}
+
+/* =============================================
+   BOUNDARIES
+============================================= */
+.sec-bounds{background:var(--ivory);padding:130px 50px}
+.bounds-inner{max-width:740px;margin:0 auto;text-align:center}
+.bounds-inner h2{font-size:42px;color:var(--navy);margin:20px 0 50px}
+.bound-items{margin-bottom:50px}
+.bound-item{padding:32px 0;border-top:1px solid rgba(201,168,76,0.2);text-align:left}
+.bound-item:last-child{border-bottom:1px solid rgba(201,168,76,0.2)}
+.bound-item h4{font-size:20px;color:var(--navy);margin-bottom:10px}
+.bound-item p{font-size:14px;color:var(--slate);line-height:1.75}
+.bounds-closing{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:21px;color:var(--navy);line-height:1.65;max-width:580px;margin:0 auto}
+
+/* =============================================
+   FEATURED AUTHORS (HOME)
+============================================= */
+.sec-authors{background:var(--navy);padding:130px 50px}
+.authors-inner{max-width:1200px;margin:0 auto}
+.authors-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:72px}
+
+.author-card{
+  background:var(--navy-light);border:1px solid rgba(201,168,76,0.08);
+  overflow:hidden;transition:all 0.5s cubic-bezier(0.4,0,0.2,1);position:relative;
+}
+.author-card:hover{transform:translateY(-8px);border-color:rgba(201,168,76,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.3),0 0 30px rgba(201,168,76,0.06)}
+
+.author-card-top{padding:36px 28px 20px;display:flex;gap:16px;align-items:flex-start}
+.author-photo{
+  width:64px;height:64px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--gold);flex-shrink:0;cursor:pointer;transition:var(--transition);
+}
+.author-photo:hover{transform:scale(1.1);box-shadow:0 0 18px rgba(201,168,76,0.3)}
+.author-card-meta h3{font-size:20px;color:var(--ivory);margin-bottom:4px}
+.author-card-meta .book-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:var(--gold);margin-bottom:4px}
+.author-card-meta .genre{font-size:9px;font-weight:600;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase;opacity:0.6}
+
+.author-cover-wrap{padding:0 28px;margin-bottom:20px;display:flex;flex-direction:column;align-items:center}
+.author-book-cover{
+  width:170px;height:255px;object-fit:cover;
+  box-shadow:6px 6px 28px rgba(0,0,0,0.45);border:1px solid rgba(201,168,76,0.12);
+  cursor:pointer;transition:var(--transition);
+}
+.author-book-cover:hover{transform:scale(1.05) translateY(-4px);box-shadow:10px 10px 36px rgba(0,0,0,0.55),0 0 16px rgba(201,168,76,0.1)}
+.amazon-badge{
+  display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+  font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--amazon-orange);transition:var(--transition);
+}
+.amazon-badge:hover{color:#FFB84D;transform:translateY(-2px)}
+.amazon-badge i{font-size:16px}
+
+.author-card-body{padding:0 28px 20px}
+.author-card-desc{font-size:13px;color:rgba(245,240,232,0.5);line-height:1.75;margin-bottom:16px}
+.author-testimonial{
+  font-family:'EB Garamond',serif;font-style:italic;font-size:14px;
+  color:rgba(245,240,232,0.65);line-height:1.65;border-left:2px solid var(--gold);
+  padding-left:14px;margin-bottom:10px;
+}
+.author-attr{font-size:11px;font-weight:600;color:var(--slate-light);letter-spacing:1px;padding-left:14px}
+
+.author-card-foot{
+  padding:16px 28px;border-top:1px solid rgba(201,168,76,0.06);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.author-email{font-size:11px;color:var(--gold);display:flex;align-items:center;gap:5px}
+.author-email:hover{color:var(--gold-light)}
+
+/* =============================================
+   CTA SECTION
+============================================= */
+.sec-cta{
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-dark) 100%);
+  padding:110px 50px;text-align:center;position:relative;overflow:hidden;
+}
+.sec-cta::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(255,255,255,0.08) 0%,transparent 55%)}
+.sec-cta h2{font-size:50px;color:var(--navy);max-width:680px;margin:0 auto 22px;line-height:1.1;position:relative;z-index:1}
+.sec-cta p{font-family:'Cormorant Garamond',serif;font-size:21px;color:rgba(13,22,34,0.65);max-width:560px;margin:0 auto 44px;line-height:1.65;position:relative;z-index:1}
+.sec-cta .btn-dark{position:relative;z-index:1}
+.cta-email{display:block;margin-top:18px;font-size:13px;color:rgba(13,22,34,0.5);letter-spacing:1px;position:relative;z-index:1}
+
+/* =============================================
+   SERVICES HERO
+============================================= */
+.svc-hero{
+  min-height:60vh;background:var(--navy);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:140px 50px 90px;position:relative;
+}
+.svc-hero h1{font-size:54px;color:var(--ivory);max-width:780px;margin-top:20px;line-height:1.1}
+.svc-hero > p{font-family:'Cormorant Garamond',serif;font-size:20px;color:rgba(245,240,232,0.5);margin-top:22px;max-width:580px}
+
+/* Service Tabs */
+.svc-tabs{
+  background:var(--navy-deep);padding:0 50px;display:flex;
+  border-bottom:1px solid rgba(201,168,76,0.1);position:sticky;top:78px;z-index:100;overflow-x:auto;
+}
+.svc-tab{
+  padding:18px 26px;font-size:10px;font-weight:600;
+  color:rgba(245,240,232,0.35);letter-spacing:2px;text-transform:uppercase;
+  cursor:pointer;border:none;border-bottom:2px solid transparent;
+  background:none;transition:var(--transition);white-space:nowrap;
+}
+.svc-tab:hover,.svc-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* Service Sections */
+.svc-section{padding:90px 50px}
+.svc-section-light{background:var(--ivory)}
+.svc-section-dark{background:var(--navy)}
+.svc-section-inner{max-width:1180px;margin:0 auto}
+.svc-section-head{display:flex;align-items:flex-start;gap:44px;margin-bottom:64px;padding-bottom:48px;border-bottom:1px solid rgba(201,168,76,0.12)}
+.svc-num{font-family:'Playfair Display',serif;font-size:90px;font-weight:900;color:var(--gold);line-height:1;opacity:0.2;flex-shrink:0}
+.svc-title-group h2{font-size:42px;margin-bottom:14px}
+.svc-section-light .svc-title-group h2{color:var(--navy)}
+.svc-section-dark .svc-title-group h2{color:var(--ivory)}
+.svc-title-group p{font-family:'Cormorant Garamond',serif;font-size:19px;line-height:1.7}
+.svc-section-light .svc-title-group p{color:var(--slate)}
+.svc-section-dark .svc-title-group p{color:rgba(245,240,232,0.5)}
+
+.svc-items{display:flex;flex-direction:column}
+.svc-item{padding:42px 0;border-bottom:1px solid rgba(201,168,76,0.08);display:grid;grid-template-columns:240px 1fr;gap:48px}
+.svc-item-name{font-size:20px;padding-top:4px}
+.svc-section-light .svc-item-name{color:var(--navy)}
+.svc-section-dark .svc-item-name{color:var(--ivory)}
+.svc-item-body{font-size:15px;line-height:1.85}
+.svc-section-light .svc-item-body{color:var(--slate)}
+.svc-section-dark .svc-item-body{color:rgba(245,240,232,0.55)}
+
+/* =============================================
+   EXPERTS
+============================================= */
+.exp-hero{
+  min-height:55vh;background:var(--navy);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:140px 50px 90px;
+}
+.exp-hero h1{font-size:54px;color:var(--ivory);max-width:740px;margin-top:20px}
+.exp-hero > p{font-family:'Cormorant Garamond',serif;font-size:19px;color:rgba(245,240,232,0.5);margin-top:22px;max-width:600px;line-height:1.7}
+
+.expert-profiles{display:flex;flex-direction:column;gap:2px}
+.expert-row{display:grid;grid-template-columns:1fr 1fr;min-height:500px}
+.expert-row-alt{direction:rtl}
+.expert-row-alt > *{direction:ltr}
+
+.expert-photo-side{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 50px}
+.expert-photo-side-light{background:var(--ivory)}
+.expert-photo-side-dark{background:var(--navy-deep)}
+.expert-photo-img{
+  width:210px;height:270px;object-fit:cover;
+  border:1px solid rgba(201,168,76,0.18);border-left:4px solid var(--gold);
+  margin-bottom:24px;filter:grayscale(15%);transition:var(--transition);
+}
+.expert-photo-img:hover{filter:grayscale(0%);transform:scale(1.02);box-shadow:0 10px 36px rgba(0,0,0,0.18)}
+.expert-name{font-size:22px;text-align:center;margin-bottom:6px}
+.expert-photo-side-light .expert-name{color:var(--navy)}
+.expert-photo-side-dark .expert-name{color:var(--ivory)}
+.expert-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--gold);text-align:center;margin-bottom:6px}
+.expert-years{font-size:10px;font-weight:500;color:var(--slate);letter-spacing:2px;text-transform:uppercase;text-align:center}
+
+.expert-content-side{padding:70px 54px;display:flex;flex-direction:column;justify-content:center}
+.expert-content-light{background:var(--ivory-light)}
+.expert-content-dark{background:var(--navy-light)}
+.expert-sec-label{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.expert-sec-label::before{content:'';width:26px;height:1px;background:var(--gold)}
+.expert-sec-label span{font-size:9px;font-weight:600;color:var(--gold);letter-spacing:3px;text-transform:uppercase}
+.expert-block{margin-bottom:32px}
+.expert-block h4{font-size:17px;margin-bottom:10px}
+.expert-content-light .expert-block h4{color:var(--navy)}
+.expert-content-dark .expert-block h4{color:var(--ivory)}
+.expert-block p{font-size:14px;line-height:1.8}
+.expert-content-light .expert-block p{color:var(--slate)}
+.expert-content-dark .expert-block p{color:rgba(245,240,232,0.55)}
+.expert-closing{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:19px;color:var(--gold);padding-top:18px;border-top:1px solid rgba(201,168,76,0.18)}
+
+/* =============================================
+   FEATURED AUTHORS PAGE
+============================================= */
+.feat-hero{
+  min-height:55vh;background:var(--navy);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:140px 50px 90px;
+}
+.feat-hero h1{font-size:54px;color:var(--ivory);max-width:740px;margin-top:20px}
+.feat-hero > p{font-family:'Cormorant Garamond',serif;font-size:19px;color:rgba(245,240,232,0.5);margin-top:22px;max-width:620px;line-height:1.7}
+
+.feat-author-block{display:grid;grid-template-columns:1fr 1fr;min-height:620px}
+.feat-author-block-alt{direction:rtl}
+.feat-author-block-alt > *{direction:ltr}
+
+.feat-book-side{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 50px;gap:20px}
+.feat-book-side-light{background:var(--ivory)}
+.feat-book-side-dark{background:var(--navy-deep)}
+
+.feat-author-photo{
+  width:95px;height:95px;border-radius:50%;object-fit:cover;
+  border:3px solid var(--gold);cursor:pointer;transition:var(--transition);
+}
+.feat-author-photo:hover{transform:scale(1.08);box-shadow:0 0 26px rgba(201,168,76,0.3)}
+.feat-book-img{
+  width:230px;height:345px;object-fit:cover;
+  box-shadow:14px 14px 44px rgba(0,0,0,0.5);border:1px solid rgba(201,168,76,0.18);
+  cursor:pointer;transition:var(--transition);
+}
+.feat-book-img:hover{transform:scale(1.04) translateY(-5px);box-shadow:18px 18px 52px rgba(0,0,0,0.6),0 0 20px rgba(201,168,76,0.1)}
+.feat-amazon{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--amazon-orange);transition:var(--transition)}
+.feat-amazon:hover{color:#FFB84D}
+.feat-amazon i{font-size:20px}
+
+.feat-content-side{padding:70px 54px;display:flex;flex-direction:column;justify-content:center}
+.feat-content-light{background:var(--ivory-light)}
+.feat-content-dark{background:var(--navy-light)}
+.feat-genre{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px}
+.feat-name{font-size:34px;margin-bottom:6px}
+.feat-content-light .feat-name{color:var(--navy)}
+.feat-content-dark .feat-name{color:var(--ivory)}
+.feat-book-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:21px;color:var(--gold);margin-bottom:6px}
+.feat-email{font-size:12px;color:var(--gold);margin-bottom:22px;display:flex;align-items:center;gap:5px}
+.feat-desc{font-size:15px;line-height:1.85;margin-bottom:26px}
+.feat-content-light .feat-desc{color:var(--slate)}
+.feat-content-dark .feat-desc{color:rgba(245,240,232,0.55)}
+.feat-eng-label{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+.feat-rule{width:100%;height:1px;background:rgba(201,168,76,0.18);margin-bottom:18px}
+.feat-eng-body{font-size:14px;line-height:1.8;margin-bottom:24px}
+.feat-content-light .feat-eng-body{color:var(--slate)}
+.feat-content-dark .feat-eng-body{color:rgba(245,240,232,0.5)}
+.feat-quote{
+  font-family:'EB Garamond',serif;font-style:italic;font-size:17px;
+  line-height:1.7;border-left:3px solid var(--gold);padding-left:18px;margin-bottom:10px;
+}
+.feat-content-light .feat-quote{color:var(--navy)}
+.feat-content-dark .feat-quote{color:rgba(245,240,232,0.75)}
+.feat-quote-attr{font-size:12px;font-weight:600;color:var(--slate);padding-left:18px}
+
+/* =============================================
+   APPLY PAGE
+============================================= */
+.apply-hero{
+  min-height:55vh;background:var(--navy);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:140px 50px 90px;
+  position:relative;overflow:hidden;
+}
+.apply-hero::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(201,168,76,0.04) 0%,transparent 55%)}
+.apply-hero h1{font-size:58px;color:var(--ivory);max-width:740px;margin-top:20px;position:relative;z-index:1}
+.apply-hero > p{font-family:'Cormorant Garamond',serif;font-size:20px;color:rgba(245,240,232,0.5);margin-top:24px;max-width:620px;line-height:1.7;position:relative;z-index:1}
+
+.apply-steps-sec{background:var(--ivory);padding:130px 50px}
+.apply-steps-sec h2{font-size:42px;color:var(--navy);text-align:center;margin:20px 0 64px}
+.apply-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:1180px;margin:0 auto;background:rgba(201,168,76,0.06)}
+.apply-step{background:var(--ivory-light);padding:50px 36px;border-top:3px solid var(--gold);transition:transform 0.3s}
+.apply-step:hover{transform:translateY(-4px)}
+.apply-step-num{font-family:'Playfair Display',serif;font-size:52px;font-weight:700;color:var(--gold);opacity:0.3;line-height:1;margin-bottom:18px}
+.apply-step h3{font-size:20px;color:var(--navy);margin-bottom:12px}
+.apply-step p{font-size:14px;color:var(--slate);line-height:1.75}
+
+/* Apply Form */
+.apply-form-sec{background:var(--navy);padding:130px 50px}
+.apply-form-inner{max-width:680px;margin:0 auto}
+.apply-form-inner h2{font-size:42px;color:var(--ivory);text-align:center;margin:20px 0 14px}
+.apply-form-inner > p{font-family:'Cormorant Garamond',serif;font-size:18px;color:rgba(245,240,232,0.45);text-align:center;margin-bottom:50px}
+
+.apply-form{display:flex;flex-direction:column;gap:22px}
+.form-group{display:flex;flex-direction:column;gap:7px}
+.form-group label{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase}
+.form-group input,.form-group select,.form-group textarea{
+  font-family:'Inter',sans-serif;font-size:14px;padding:15px 18px;
+  background:rgba(245,240,232,0.03);border:1px solid rgba(201,168,76,0.15);
+  color:var(--ivory);outline:none;transition:var(--transition);border-radius:1px;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+  border-color:var(--gold);background:rgba(245,240,232,0.05);box-shadow:0 0 18px rgba(201,168,76,0.08);
+}
+.form-group textarea{min-height:110px;resize:vertical}
+.form-group select{appearance:none;cursor:pointer}
+.form-group select option{background:var(--navy);color:var(--ivory)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.form-submit{margin-top:14px}
+.form-note{font-size:12px;color:rgba(245,240,232,0.3);text-align:center;margin-top:20px;line-height:1.7}
+.form-note i{color:var(--gold);margin-right:5px}
+
+/* =============================================
+   FOOTER
+============================================= */
+.site-footer{background:var(--navy-deep);border-top:1px solid rgba(201,168,76,0.08)}
+.footer-main{padding:72px 50px 44px}
+.footer-inner{max-width:1180px;margin:0 auto}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr;gap:44px;margin-bottom:50px}
+.footer-brand-logo{height:36px;width:auto;margin-bottom:10px}
+.footer-brand-name{font-family:'Playfair Display',serif;font-weight:700;font-size:20px;color:var(--ivory);letter-spacing:4px;text-transform:uppercase;margin-bottom:4px}
+.footer-brand-sub{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:12px;color:var(--gold);letter-spacing:1px;margin-bottom:18px}
+.footer-brand-desc{font-size:12px;color:rgba(245,240,232,0.3);line-height:1.75;margin-bottom:14px}
+.footer-email{font-size:13px;color:var(--gold);display:flex;align-items:center;gap:7px}
+.footer-email:hover{color:var(--gold-light)}
+.footer-heading{font-size:9px;font-weight:600;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}
+.footer-links li{margin-bottom:8px}
+.footer-links a{font-size:13px;color:rgba(245,240,232,0.35);cursor:pointer;transition:var(--transition)}
+.footer-links a:hover{color:var(--gold);padding-left:5px}
+.footer-contact-text{font-size:12px;color:rgba(245,240,232,0.3);line-height:1.75;margin-bottom:14px}
+
+.footer-bottom{padding:22px 50px;border-top:1px solid rgba(201,168,76,0.06);display:flex;justify-content:space-between;align-items:center;max-width:1280px;margin:0 auto}
+.footer-copy,.footer-legal{font-size:11px;color:rgba(245,240,232,0.2)}
+
+/* =============================================
+   BACK TO TOP
+============================================= */
+.btt{
+  position:fixed;bottom:28px;right:28px;width:44px;height:44px;
+  background:var(--gold);color:var(--navy);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  z-index:500;opacity:0;visibility:hidden;transition:var(--transition);border-radius:1px;
+}
+.btt.show{opacity:1;visibility:visible}
+.btt:hover{background:var(--gold-dark);transform:translateY(-4px);box-shadow:var(--shadow-gold)}
+
+/* =============================================
+   PAGE SYSTEM
+============================================= */
+.page{display:none;opacity:0;transition:opacity 0.5s}
+.page.active{display:block;opacity:1}
+
+/* =============================================
+   RESPONSIVE
+============================================= */
+@media(max-width:1024px){
+  .hero h1{font-size:48px}
+  .problem-grid,.model-grid,.founder-grid{grid-template-columns:1fr;gap:50px}
+  .authors-grid{grid-template-columns:1fr;max-width:460px;margin-left:auto;margin-right:auto}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:36px}
+  .expert-row,.expert-row-alt{grid-template-columns:1fr}
+  .expert-row-alt{direction:ltr}
+  .feat-author-block,.feat-author-block-alt{grid-template-columns:1fr}
+  .feat-author-block-alt{direction:ltr}
+  .svc-item{grid-template-columns:1fr;gap:14px}
+  .founder-img{height:380px}
+}
+@media(max-width:768px){
+  .navbar{padding:0 20px}
+  .nav-menu{display:none}
+  .hamburger{display:flex}
+  .hero,.svc-hero,.exp-hero,.feat-hero,.apply-hero{padding:120px 20px 60px}
+  .hero h1{font-size:34px}
+  .hero-sub{font-size:17px}
+  .hero-badges{flex-direction:column;gap:14px}
+  .hero-badge-sep{width:36px;height:1px}
+  .hero-btns{flex-direction:column;width:100%}
+  .hero-btns .btn-gold,.hero-btns .btn-outline{width:100%;text-align:center}
+  .sec-problem,.sec-solution,.sec-pillars,.sec-model,.sec-bounds,.sec-authors,.sec-founder,.sec-cta{padding:70px 20px}
+  .svc-hero h1,.exp-hero h1,.feat-hero h1,.apply-hero h1{font-size:32px}
+  .solution-heading,.sec-cta h2{font-size:34px}
+  .solution-cards{grid-template-columns:1fr}
+  .pillars-grid{grid-template-columns:1fr}
+  .sec-header h2,.bounds-inner h2{font-size:30px}
+  .svc-tabs{padding:0 20px}
+  .svc-section{padding:55px 20px}
+  .svc-section-head{flex-direction:column;gap:14px}
+  .svc-num{font-size:55px}
+  .apply-steps{grid-template-columns:1fr}
+  .apply-form-sec{padding:70px 20px}
+  .form-row{grid-template-columns:1fr}
+  .footer-main{padding:50px 20px 36px}
+  .footer-grid{grid-template-columns:1fr;gap:28px}
+  .footer-bottom{flex-direction:column;gap:6px;text-align:center;padding:18px 20px}
+  .trust-bar{padding:24px 20px}
+  .trust-bar-inner{gap:20px}
+  .model-info h2,.founder-info h2,.apply-form-inner h2,.apply-steps-sec h2{font-size:30px}
+}
+
+</style>
+</head>
+<body>
+
+<!-- =============================================
+     PRELOADER
+============================================= -->
+<div class="preloader" id="preloader">
+  <img src="legavora.png" alt="Legavora" class="preloader-logo-img">
+  <div class="preloader-text">LEGAVORA</div>
+  <div class="preloader-bar-wrap"><div class="preloader-bar"></div></div>
+  <div class="preloader-sub">Building Author Legacies</div>
+</div>
+
+<!-- CURSOR GLOW -->
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<!-- BACK TO TOP -->
+<button class="btt" id="btt" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-chevron-up"></i></button>
+
+<!-- =============================================
+     NAVIGATION
+============================================= -->
+<nav class="navbar" id="navbar">
+  <div class="nav-brand" onclick="go('home')">
+    <img src="legavora.png" alt="Legavora" class="nav-brand-img">
+    <div>
+      <div class="nav-brand-text">Legavora</div>
+      <span class="nav-brand-sub">Literary Agency &amp; Book Production House</span>
+    </div>
+  </div>
+  <div class="nav-menu">
+    <a onclick="go('home')">Home</a>
+    <a onclick="go('about')">About</a>
+    <a onclick="go('services')">Services</a>
+    <a onclick="go('experts')">Our Experts</a>
+    <a onclick="go('authors')">Featured Authors</a>
+    <a onclick="go('apply')" class="nav-apply">Apply</a>
+  </div>
+  <div class="hamburger" id="hamburger" onclick="toggleMob()"><span></span><span></span><span></span></div>
+</nav>
+
+<!-- MOBILE OVERLAY -->
+<div class="mobile-overlay" id="mobOverlay">
+  <a onclick="go('home');closeMob()">Home</a>
+  <a onclick="go('about');closeMob()">About</a>
+  <a onclick="go('services');closeMob()">Services</a>
+  <a onclick="go('experts');closeMob()">Our Experts</a>
+  <a onclick="go('authors');closeMob()">Featured Authors</a>
+  <a onclick="go('apply');closeMob()">Apply</a>
+</div>
+
+<!-- =============================================
+     HOME PAGE
+============================================= -->
+<div id="home" class="page active">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="particles-container" id="particles"></div>
+    <div class="hero-content">
+      <img src="legavora.png" alt="Legavora" class="hero-logo reveal">
+      <div class="sec-label center reveal"><span>Legavora Literary Agency</span></div>
+      <h1 class="reveal">Build Your Book<br>Into a <span class="accent">Career</span></h1>
+      <p class="hero-sub reveal">From manuscript refinement to marketing execution and publisher representation, Legavora carries your book through every stage under one unified system with one standard of excellence.</p>
+      <div class="hero-btns reveal">
+        <a class="btn-gold" onclick="go('apply')">Apply to Work With Us</a>
+        <a href="mailto:hello@legavora.com" class="btn-outline">hello@legavora.com</a>
+      </div>
+      <p class="hero-contact reveal">All engagements begin with email. <a href="mailto:hello@legavora.com">hello@legavora.com</a></p>
+      <div class="hero-badges reveal">
+        <div class="hero-badge">Limited Roster</div>
+        <div class="hero-badge-sep"></div>
+        <div class="hero-badge">Full Service System</div>
+        <div class="hero-badge-sep"></div>
+        <div class="hero-badge">One Point of Contact</div>
+        <div class="hero-badge-sep"></div>
+        <div class="hero-badge">Full Documentation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BAR -->
+  <div class="trust-bar">
+    <div class="trust-bar-inner">
+      <div class="trust-item"><div class="trust-icon"><i class="fas fa-shield-alt"></i></div><span class="trust-text">Fully Documented</span></div>
+      <div class="trust-item"><div class="trust-icon"><i class="fas fa-envelope"></i></div><span class="trust-text">Email Only</span></div>
+      <div class="trust-item"><div class="trust-icon"><i class="fas fa-lock"></i></div><span class="trust-text">Rights Protected</span></div>
+      <div class="trust-item"><div class="trust-icon"><i class="fas fa-award"></i></div><span class="trust-text">Professional Standard</span></div>
+      <div class="trust-item"><div class="trust-icon"><i class="fas fa-users"></i></div><span class="trust-text">Selective Roster</span></div>
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <section class="sec-problem">
+    <div class="problem-grid">
+      <div class="reveal-left">
+        <div class="sec-label"><span>The Publishing Problem</span></div>
+        <h2 class="problem-heading">The Industry Was Not Built for Authors</h2>
+        <p class="problem-body">Most authors are left to coordinate their own publishing journey. They hire one editor, find a separate designer, and search for a marketer with no single party accountable for the full outcome. When the book fails to reach its audience, every vendor points elsewhere.<br><br>Legavora removes this fragmentation entirely. Every service your book requires lives under one name, one coordinated process, and one point of contact.</p>
+      </div>
+      <div class="problem-cards stagger-children reveal-right">
+        <div class="problem-card"><p>One editor hired with no visibility into design or marketing strategy</p></div>
+        <div class="problem-card"><p>One designer working without understanding advertising requirements</p></div>
+        <div class="problem-card"><p>Upload to Amazon without understanding metadata architecture</p></div>
+        <div class="problem-card"><p>Launch attempted without a structured plan or email system</p></div>
+        <div class="problem-card"><p>No single party accountable for the outcome of the whole project</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOLUTION -->
+  <section class="sec-solution">
+    <div class="solution-inner">
+      <div class="sec-label center reveal"><span>The Legavora System</span></div>
+      <h2 class="solution-heading reveal">One System. Every Stage.<br>Full Accountability.</h2>
+      <p class="solution-body reveal">Every service your book requires lives under one name, one coordinated process, and one point of accountability. Legavora carries your manuscript forward with structured execution and sustained professional attention.</p>
+      <div class="solution-cards stagger-children reveal">
+        <div class="solution-card"><div class="solution-card-icon"><i class="fas fa-user"></i></div><div class="solution-card-title">One Point of Contact</div><div class="solution-card-body">No vendor coordination required</div></div>
+        <div class="solution-card"><div class="solution-card-icon"><i class="fas fa-layer-group"></i></div><div class="solution-card-title">Every Stage Covered</div><div class="solution-card-body">Editorial through representation</div></div>
+        <div class="solution-card"><div class="solution-card-icon"><i class="fas fa-file-alt"></i></div><div class="solution-card-title">Full Documentation</div><div class="solution-card-body">Every decision through email</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUR PILLARS -->
+  <section class="sec-pillars">
+    <div class="pillars-inner">
+      <div class="sec-header">
+        <div class="sec-label center reveal"><span>What Legavora Covers</span></div>
+        <h2 class="reveal">A Complete Infrastructure for Author Success</h2>
+        <p class="desc reveal">Four connected disciplines. One unified system. Every stage of the publishing journey.</p>
+      </div>
+      <div class="pillars-grid stagger-children reveal">
+        <div class="pillar-card"><div class="pillar-num">01</div><span class="pillar-label">Editorial and Production</span><h3>Where the Manuscript Becomes the Book</h3><p>Our editorial process ensures your manuscript reaches publication with clarity, consistency, and market readiness.</p><ul class="pillar-list"><li>Developmental Editing</li><li>Copy Editing</li><li>Proofreading</li><li>Print and Ebook Formatting</li></ul><button class="pillar-more" onclick="go('services')">Learn More →</button></div>
+        <div class="pillar-card"><div class="pillar-num">02</div><span class="pillar-label">Design and Media</span><h3>Where the Book Takes Visual Form</h3><p>Legavora ensures your book communicates authority and professionalism at first glance.</p><ul class="pillar-list"><li>Cover Design and Mockups</li><li>Interior Book Layout</li><li>Author Branding and Logo</li><li>Author Website Design</li><li>Book Trailer Production</li></ul><button class="pillar-more" onclick="go('services')">Learn More →</button></div>
+        <div class="pillar-card"><div class="pillar-num">03</div><span class="pillar-label">Publishing Infrastructure</span><h3>Where the Book Becomes Properly Published</h3><p>Legavora builds the technical foundation that ensures your book is discoverable.</p><ul class="pillar-list"><li>Amazon KDP Setup</li><li>IngramSpark Setup</li><li>ISBN and Metadata Registration</li><li>Amazon Listing Optimization</li></ul><button class="pillar-more" onclick="go('services')">Learn More →</button></div>
+        <div class="pillar-card"><div class="pillar-num">04</div><span class="pillar-label">Marketing and Representation</span><h3>Where the Book Finds Its Audience</h3><p>Legavora builds the systems that go out and find your readers.</p><ul class="pillar-list"><li>Book Launch Strategy</li><li>Email Marketing Automation</li><li>Social Media Content Strategy</li><li>Paid Advertising Management</li><li>Publisher Representation</li><li>Contract Negotiation Support</li></ul><button class="pillar-more" onclick="go('services')">Learn More →</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUNDER -->
+  <section class="sec-founder">
+    <div class="founder-grid">
+      <div class="founder-img-wrap reveal-left"><img src="JANET.jpg" alt="Janet Jefferson - Founder of Legavora" class="founder-img"></div>
+      <div class="founder-info reveal-right">
+        <div class="sec-label"><span>The Founder</span></div>
+        <h2>Janet Jefferson</h2>
+        <div class="founder-role">Founder and Managing Director, Legavora</div>
+        <p>With over 9 years of deep professional experience in the book industry, Janet Jefferson founded Legavora on a single observation: the publishing industry consistently rewards infrastructure over talent. Talented authors without professional systems routinely fail to reach their audience.</p>
+        <p>Legavora was built to change that. Every engagement is personally overseen by Janet and her team of handpicked specialists, ensuring no detail is missed and no author is left without professional accountability.</p>
+        <p>Her commitment to documented, email based communication ensures complete transparency and a professional record of every decision made on your behalf.</p>
+        <div class="founder-sig">Janet Jefferson</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPERATING MODEL -->
+  <section class="sec-model">
+    <div class="model-grid">
+      <div class="model-info reveal-left">
+        <div class="sec-label"><span>How We Operate</span></div>
+        <h2>Selective by Design. Built to Scale.</h2>
+        <p>Legavora does not operate a high volume pipeline. The agency maintains a deliberately limited client roster ensuring every author receives the full weight of professional attention.</p>
+        <p>All projects and conversations are handled exclusively through email. Every decision, update, and deliverable is documented, organized, and professionally traceable.</p>
+        <div class="model-points stagger-children">
+          <div class="model-point"><div class="model-dot"></div><span>Limited client roster maintained at all times</span></div>
+          <div class="model-point"><div class="model-dot"></div><span>All communication exclusively through email</span></div>
+          <div class="model-point"><div class="model-dot"></div><span>Every decision and deliverable documented</span></div>
+          <div class="model-point"><div class="model-dot"></div><span>One point of contact for every engagement</span></div>
+        </div>
+      </div>
+      <div class="model-stats stagger-children reveal-right">
+        <div class="model-stat"><div class="model-stat-num">01</div><div class="model-stat-label">Point of Contact</div></div>
+        <div class="model-stat"><div class="model-stat-num">100%</div><div class="model-stat-label">Email Documented</div></div>
+        <div class="model-stat"><div class="model-stat-num">4</div><div class="model-stat-label">Integrated Service Areas</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOUNDARIES -->
+  <section class="sec-bounds">
+    <div class="bounds-inner">
+      <div class="sec-label center reveal"><span>Our Boundaries</span></div>
+      <h2 class="reveal">Boundaries Define the Standard</h2>
+      <div class="bound-items stagger-children reveal">
+        <div class="bound-item"><h4>We do not offer ghostwriting</h4><p>An author's voice is their intellectual signature. It belongs to them alone. Every book Legavora represents is written by the author whose name it carries.</p></div>
+        <div class="bound-item"><h4>We do not offer press or media outreach</h4><p>Earned media depends on editorial decisions outside any agency's control. Legavora does not make promises it cannot keep.</p></div>
+        <div class="bound-item"><h4>We do not offer bookstore or library distribution</h4><p>These channels require negotiating with buyers whose decisions are governed by criteria outside our direct control.</p></div>
+      </div>
+      <p class="bounds-closing reveal">A company that promises everything delivers nothing with excellence. Legavora delivers what it promises because it only promises what it can own entirely.</p>
+    </div>
+  </section>
+
+  <!-- FEATURED AUTHORS -->
+  <section class="sec-authors">
+    <div class="authors-inner">
+      <div class="sec-header" style="text-align:center">
+        <div class="sec-label center reveal"><span>From the Legavora Roster</span></div>
+        <h2 style="color:var(--ivory)" class="reveal">Authors Built by the Legavora System</h2>
+        <p class="desc" style="color:rgba(245,240,232,0.5)" class="reveal">Every author featured here moved through the Legavora system with professional support.</p>
+      </div>
+      <div class="authors-grid">
+
+        <!-- James Victor -->
+        <div class="author-card reveal">
+          <div class="author-card-top">
+            <a href="#" target="_blank"><img src="James 1s.webp" alt="James Victor" class="author-photo"></a>
+            <div class="author-card-meta"><h3>James Victor</h3><div class="book-title">James Victor Book</div><div class="genre">Contemporary Literature</div></div>
+          </div>
+          <div class="author-cover-wrap">
+            <a href="#" target="_blank"><img src="James 2s.jpg" alt="James Victor Book" class="author-book-cover"></a>
+            <a href="#" target="_blank" class="amazon-badge"><i class="fab fa-amazon"></i> View on Amazon</a>
+          </div>
+          <div class="author-card-body">
+            <p class="author-card-desc">James Victor is a talented author whose work has resonated deeply with readers across multiple communities, bringing fresh perspectives and compelling narratives.</p>
+            <p class="author-testimonial">"Working with Janet has been exceptional. Her professionalism, strategic approach, and commitment to documenting every step gave me complete confidence."</p>
+            <div class="author-attr">James Victor</div>
+          </div>
+          <div class="author-card-foot">
+            <a href="mailto:jamesdavidvictor6@gmail.com" class="author-email"><i class="fas fa-envelope"></i> jamesdavidvictor6@gmail.com</a>
+          </div>
+        </div>
+
+        <!-- Kate Cullen -->
+        <div class="author-card reveal">
+          <div class="author-card-top">
+            <a href="#" target="_blank"><img src="Katie 1s.webp" alt="Kate Cullen" class="author-photo"></a>
+            <div class="author-card-meta"><h3>Kate Cullen</h3><div class="book-title">Kate Cullen Book</div><div class="genre">Literary Fiction</div></div>
+          </div>
+          <div class="author-cover-wrap">
+            <a href="#" target="_blank"><img src="Katie 2s.jpg" alt="Kate Cullen Book" class="author-book-cover"></a>
+            <a href="#" target="_blank" class="amazon-badge"><i class="fab fa-amazon"></i> View on Amazon</a>
+          </div>
+          <div class="author-card-body">
+            <p class="author-card-desc">Kate Cullen is an accomplished author whose writing carries a distinctive voice and an ability to connect with readers on a deeply personal level.</p>
+            <p class="author-testimonial">"Janet's structured approach gave me complete clarity and confidence in what was happening with my book. Every update documented, every decision recorded."</p>
+            <div class="author-attr">Kate Cullen</div>
+          </div>
+          <div class="author-card-foot">
+            <a href="mailto:katecullen473@gmail.com" class="author-email"><i class="fas fa-envelope"></i> katecullen473@gmail.com</a>
+          </div>
+        </div>
+
+        <!-- Rachael C. Duncan -->
+        <div class="author-card reveal">
+          <div class="author-card-top">
+            <a href="#" target="_blank"><img src="Duncan 1s.webp" alt="Rachael C. Duncan" class="author-photo"></a>
+            <div class="author-card-meta"><h3>Rachael C. Duncan</h3><div class="book-title">Rachael C. Duncan Book</div><div class="genre">Narrative Nonfiction</div></div>
+          </div>
+          <div class="author-cover-wrap">
+            <a href="#" target="_blank"><img src="Duncan 2s.jpg" alt="Rachael C. Duncan Book" class="author-book-cover"></a>
+            <a href="#" target="_blank" class="amazon-badge"><i class="fab fa-amazon"></i> View on Amazon</a>
+          </div>
+          <div class="author-card-body">
+            <p class="author-card-desc">Rachael C. Duncan is a distinguished author whose literary work demonstrates both creative depth and commercial appeal, attracting a dedicated readership.</p>
+            <p class="author-testimonial">"What sets Janet apart is her genuine commitment to each project. Everything was built specifically for my book and my audience. Truly professional."</p>
+            <div class="author-attr">Rachael C. Duncan</div>
+          </div>
+          <div class="author-card-foot">
+            <a href="mailto:authorrachaelduncan@gmail.com" class="author-email"><i class="fas fa-envelope"></i> authorrachaelduncan@gmail.com</a>
+          </div>
+        </div>
+
+      </div>
+      <div style="text-align:center;margin-top:54px" class="reveal">
+        <button class="btn-outline" onclick="go('authors')">View Full Author Profiles</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="sec-cta">
+    <h2 class="reveal">Your Book Deserves More Than a Transaction</h2>
+    <p class="reveal">If you are serious about building a structured, professional, and lasting author career, Legavora is ready to review your project.</p>
+    <a class="btn-dark reveal" onclick="go('apply')">Submit Your Project</a>
+    <a href="mailto:hello@legavora.com" class="cta-email reveal">hello@legavora.com</a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-main"><div class="footer-inner"><div class="footer-grid">
+      <div><img src="legavora.png" alt="Legavora" class="footer-brand-logo"><div class="footer-brand-name">Legavora</div><div class="footer-brand-sub">Literary Agency and Book Production House</div><p class="footer-brand-desc">All projects and communications are handled exclusively through email to ensure full documentation and professional accountability.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div>
+      <div><div class="footer-heading">Navigation</div><ul class="footer-links"><li><a onclick="go('home')">Home</a></li><li><a onclick="go('about')">About</a></li><li><a onclick="go('services')">Services</a></li><li><a onclick="go('experts')">Our Experts</a></li><li><a onclick="go('authors')">Featured Authors</a></li><li><a onclick="go('apply')">Apply</a></li></ul></div>
+      <div><div class="footer-heading">Services</div><ul class="footer-links"><li><a onclick="go('services')">Editorial and Production</a></li><li><a onclick="go('services')">Design and Media</a></li><li><a onclick="go('services')">Publishing Infrastructure</a></li><li><a onclick="go('services')">Marketing and Representation</a></li></ul></div>
+      <div><div class="footer-heading">Contact</div><p class="footer-contact-text">All projects and communications are handled exclusively through email. We respond to every serious inquiry.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div>
+    </div></div></div>
+    <div class="footer-bottom"><div class="footer-copy">Copyright 2025 Legavora. All rights reserved.</div><div class="footer-legal">All services subject to availability and selective acceptance.</div></div>
+  </footer>
+</div>
+
+<!-- =============================================
+     ABOUT PAGE
+============================================= -->
+<div id="about" class="page">
+  <section class="about-hero" style="min-height:70vh;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:140px 50px 90px;position:relative;overflow:hidden">
+    <div class="sec-label center reveal"><span>About Legavora</span></div>
+    <h1 style="font-size:58px;color:var(--ivory);max-width:800px;margin-top:20px" class="reveal">Built to Carry Authors Further Than They Could Go Alone</h1>
+    <p style="font-family:'Cormorant Garamond',serif;font-size:21px;color:rgba(245,240,232,0.5);max-width:600px;margin-top:24px;line-height:1.7" class="reveal">Legavora was founded on a single observation: the publishing industry consistently rewards infrastructure over talent. We exist to change that equation.</p>
+  </section>
+
+  <section class="sec-problem" style="background:var(--ivory);padding:120px 50px">
+    <div style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:90px;align-items:start">
+      <div class="reveal-left">
+        <div class="sec-label"><span>The Name</span></div>
+        <h2 style="font-size:40px;color:var(--navy);margin:14px 0 24px">What Legavora Means</h2>
+        <p style="font-size:15px;color:var(--slate);line-height:1.85;margin-bottom:18px">The name Legavora is drawn from two Latin roots that together define the agency's entire philosophy.</p>
+        <p style="font-size:15px;color:var(--slate);line-height:1.85">Together they represent a relentless and consuming devotion to building your legacy. Not processing a transaction. Building something that lasts.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:36px">
+          <div class="name-block" style="background:var(--navy);border-top:3px solid var(--gold);padding:28px 22px"><div class="name-block-word" style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--gold);margin-bottom:5px">Lega</div><div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:rgba(245,240,232,0.4);margin-bottom:12px">from legare</div><div style="font-size:13px;color:rgba(245,240,232,0.65);line-height:1.65">To entrust. To pass something of value down with intention.</div></div>
+          <div class="name-block" style="background:var(--navy);border-top:3px solid var(--gold);padding:28px 22px"><div style="font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--gold);margin-bottom:5px">Vora</div><div style="font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:rgba(245,240,232,0.4);margin-bottom:12px">from vorare</div><div style="font-size:13px;color:rgba(245,240,232,0.65);line-height:1.65">To consume with intensity. To pursue with complete commitment.</div></div>
+        </div>
+      </div>
+      <div class="reveal-right" style="display:flex;align-items:center;justify-content:center">
+        <div style="font-family:'Playfair Display',serif;font-weight:900;font-size:110px;color:rgba(13,22,34,0.035);line-height:1;text-align:center">LEGA<br>VORA</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-founder">
+    <div class="founder-grid">
+      <div class="founder-img-wrap reveal-left"><img src="JANET.jpg" alt="Janet Jefferson" class="founder-img"></div>
+      <div class="founder-info reveal-right">
+        <div class="sec-label"><span>Leadership</span></div>
+        <h2>Janet Jefferson</h2>
+        <div class="founder-role">Founder and Managing Director</div>
+        <p>With over 9 years in the book industry, Janet built Legavora to solve the fundamental problem that talented authors face: fragmented infrastructure that undermines their potential.</p>
+        <p>Every Legavora engagement is personally overseen. Every decision is documented. Every author is treated as a professional partner.</p>
+        <div class="founder-sig">Janet Jefferson</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-cta">
+    <h2 class="reveal">Built With Intensity. Delivered With Craft.</h2>
+    <p class="reveal">Legavora is where a manuscript becomes a book, a book becomes a career, and a career becomes a legacy.</p>
+    <a class="btn-dark reveal" onclick="go('apply')">Submit Your Project</a>
+    <a href="mailto:hello@legavora.com" class="cta-email">hello@legavora.com</a>
+  </section>
+
+  <footer class="site-footer"><div class="footer-main"><div class="footer-inner"><div class="footer-grid"><div><img src="legavora.png" alt="Legavora" class="footer-brand-logo"><div class="footer-brand-name">Legavora</div><div class="footer-brand-sub">Literary Agency and Book Production House</div><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div><div><div class="footer-heading">Navigation</div><ul class="footer-links"><li><a onclick="go('home')">Home</a></li><li><a onclick="go('about')">About</a></li><li><a onclick="go('services')">Services</a></li><li><a onclick="go('experts')">Our Experts</a></li><li><a onclick="go('authors')">Featured Authors</a></li><li><a onclick="go('apply')">Apply</a></li></ul></div><div><div class="footer-heading">Services</div><ul class="footer-links"><li><a>Editorial and Production</a></li><li><a>Design and Media</a></li><li><a>Publishing Infrastructure</a></li><li><a>Marketing and Representation</a></li></ul></div><div><div class="footer-heading">Contact</div><p class="footer-contact-text">All communications through email.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div></div></div></div><div class="footer-bottom"><div class="footer-copy">Copyright 2025 Legavora. All rights reserved.</div><div class="footer-legal">All services subject to availability and selective acceptance.</div></div></footer>
+</div>
+
+<!-- =============================================
+     SERVICES PAGE
+============================================= -->
+<div id="services" class="page">
+  <section class="svc-hero">
+    <div class="sec-label center reveal"><span>Our Services</span></div>
+    <h1 class="reveal">A Complete Infrastructure for Every Stage of Author Success</h1>
+    <p class="reveal">Every engagement is tailored. To understand what working with Legavora looks like for your project, get in touch.</p>
+  </section>
+
+  <div class="svc-tabs">
+    <button class="svc-tab active" onclick="svcScroll(0,this)">Editorial and Production</button>
+    <button class="svc-tab" onclick="svcScroll(1,this)">Design and Media</button>
+    <button class="svc-tab" onclick="svcScroll(2,this)">Publishing Infrastructure</button>
+    <button class="svc-tab" onclick="svcScroll(3,this)">Marketing and Representation</button>
+  </div>
+
+  <section class="svc-section svc-section-light" id="svc-0"><div class="svc-section-inner"><div class="svc-section-head reveal"><div class="svc-num">01</div><div class="svc-title-group"><h2>Editorial and Production</h2><p>Where every professionally published book begins.</p></div></div><div class="svc-items"><div class="svc-item reveal"><h3 class="svc-item-name">Developmental Editing</h3><p class="svc-item-body">The most comprehensive editorial intervention. Examines narrative architecture, character development, pacing, and readability. Provides actionable guidance to bring the manuscript to its full potential.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Copy Editing</h3><p class="svc-item-body">Line by line review addressing grammar, syntax, punctuation, sentence structure, and stylistic consistency throughout the manuscript.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Proofreading</h3><p class="svc-item-body">Final review catching every remaining error and formatting inconsistency before publication. The last line of quality control.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Manuscript Formatting</h3><p class="svc-item-body">Professional formatting for both print and digital. Print follows typesetting standards. Ebook ensures correct rendering across all devices.</p></div></div></div></section>
+
+  <section class="svc-section svc-section-dark" id="svc-1"><div class="svc-section-inner"><div class="svc-section-head reveal"><div class="svc-num" style="opacity:0.1">02</div><div class="svc-title-group"><h2>Design and Media</h2><p>Legavora ensures your visual assessment communicates authority and professionalism.</p></div></div><div class="svc-items"><div class="svc-item reveal"><h3 class="svc-item-name">Cover Design and Mockups</h3><p class="svc-item-body">Genre literate, visually compelling covers engineered to perform in both thumbnail and full display formats. Professional 3D mockups produced.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Interior Book Layout</h3><p class="svc-item-body">Typography, spacing, margins, and print specifications executed to professional publishing standards.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Author Branding and Logo</h3><p class="svc-item-body">Professional logo, color system, typographic identity, and brand guide for consistent presence across all platforms.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Author Website Design</h3><p class="svc-item-body">Clean, authoritative digital presence as your professional headquarters independent of any third party platform.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Book Trailer Production</h3><p class="svc-item-body">Cinematic introduction to the book's world, tone, and narrative promise. Built for video platforms and advertising.</p></div></div></div></section>
+
+  <section class="svc-section svc-section-light" id="svc-2"><div class="svc-section-inner"><div class="svc-section-head reveal"><div class="svc-num">03</div><div class="svc-title-group"><h2>Publishing Infrastructure</h2><p>The technical architecture determining whether a book is discoverable or invisible.</p></div></div><div class="svc-items"><div class="svc-item reveal"><h3 class="svc-item-name">Amazon KDP Setup</h3><p class="svc-item-body">Complete configuration including format selection, territorial rights, pricing optimization, and technical setup for print and digital editions.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">IngramSpark Setup</h3><p class="svc-item-body">Professional print on demand infrastructure and expanded distribution extending availability beyond Amazon.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">ISBN and Metadata Registration</h3><p class="svc-item-body">Strategic metadata construction optimized for both discoverability and conversion across all platforms.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Amazon Listing Optimization</h3><p class="svc-item-body">Keyword research, category selection, conversion copywriting, and backend configuration transforming your product page into a sales instrument.</p></div></div></div></section>
+
+  <section class="svc-section svc-section-dark" id="svc-3"><div class="svc-section-inner"><div class="svc-section-head reveal"><div class="svc-num" style="opacity:0.1">04</div><div class="svc-title-group"><h2>Marketing and Representation</h2><p>Publication is the starting line. The difference between success and failure is strategy and execution.</p></div></div><div class="svc-items"><div class="svc-item reveal"><h3 class="svc-item-name">Book Launch Strategy</h3><p class="svc-item-body">Structured pre launch, launch window, and post launch strategy designed for each title individually with measurable targets.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Email Marketing Automation</h3><p class="svc-item-body">Direct, owned communication channel. Automated sequences, engagement frameworks, and promotional campaigns.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Social Media Content Strategy</h3><p class="svc-item-body">Platform specific approach building credible and engaged presence where the right readers discover new authors.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Paid Advertising Management</h3><p class="svc-item-body">Data informed campaigns with audience targeting, creative development, and continuous optimization.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Query Letter and Book Proposal Writing</h3><p class="svc-item-body">Professional documents positioning every manuscript in the strongest competitive position within the submission process.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Publisher Representation</h3><p class="svc-item-body">Active manuscript submissions, industry relationship management, and professional advocacy as your literary representative.</p></div><div class="svc-item reveal"><h3 class="svc-item-name">Contract Negotiation Support</h3><p class="svc-item-body">Detailed contract review, term analysis, and negotiation support protecting your rights, royalties, and creative freedom.</p></div></div></div></section>
+
+  <section class="sec-cta"><h2>One Point of Contact. Every Stage Covered.</h2><p>This is not a menu. This is a system.</p><a class="btn-dark" onclick="go('apply')">Submit Your Project</a><a href="mailto:hello@legavora.com" class="cta-email">hello@legavora.com</a></section>
+
+  <footer class="site-footer"><div class="footer-main"><div class="footer-inner"><div class="footer-grid"><div><img src="legavora.png" alt="Legavora" class="footer-brand-logo"><div class="footer-brand-name">Legavora</div><div class="footer-brand-sub">Literary Agency and Book Production House</div><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div><div><div class="footer-heading">Navigation</div><ul class="footer-links"><li><a onclick="go('home')">Home</a></li><li><a onclick="go('about')">About</a></li><li><a onclick="go('services')">Services</a></li><li><a onclick="go('experts')">Our Experts</a></li><li><a onclick="go('authors')">Featured Authors</a></li><li><a onclick="go('apply')">Apply</a></li></ul></div><div><div class="footer-heading">Services</div><ul class="footer-links"><li><a>Editorial</a></li><li><a>Design</a></li><li><a>Infrastructure</a></li><li><a>Marketing</a></li></ul></div><div><div class="footer-heading">Contact</div><p class="footer-contact-text">All communications through email.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div></div></div></div><div class="footer-bottom"><div class="footer-copy">Copyright 2025 Legavora. All rights reserved.</div><div class="footer-legal">All services subject to availability and selective acceptance.</div></div></footer>
+</div>
+
+<!-- =============================================
+     EXPERTS PAGE
+============================================= -->
+<div id="experts" class="page">
+  <section class="exp-hero">
+    <div class="sec-label center reveal"><span>The Legavora Team</span></div>
+    <h1 class="reveal">The Specialists Behind the Legavora Standard</h1>
+    <p class="reveal">Every expert operates under unified standards, coordinated process, and direct accountability.</p>
+  </section>
+
+  <div class="expert-profiles">
+    <!-- Janet -->
+    <div class="expert-row">
+      <div class="expert-photo-side expert-photo-side-light reveal-left"><img src="JANET.jpg" alt="Janet Jefferson" class="expert-photo-img"><h3 class="expert-name">Janet Jefferson</h3><div class="expert-title">Senior Editorial and Production Lead</div><div class="expert-years">9 Years in the Book Industry</div></div>
+      <div class="expert-content-side expert-content-light reveal-right">
+        <div class="expert-block"><div class="expert-sec-label"><span>Background</span></div><h4>Professional Foundation</h4><p>Janet Jefferson brings nine years of professional experience in the book industry. Her career has been built on a deep commitment to manuscript integrity and publication excellence across genres.</p></div>
+        <div class="expert-block"><div class="expert-sec-label"><span>Role at Legavora</span></div><h4>Editorial and Production Lead</h4><p>Janet leads the editorial and production division. She oversees developmental editing standards, ensures linguistic precision across all stages, and validates every manuscript meets professional benchmarks.</p></div>
+        <div class="expert-block"><div class="expert-sec-label"><span>What She Delivers</span></div><h4>Outcome</h4><p>Manuscripts that are structurally sound, linguistically precise, and prepared to compete at the professional level.</p></div>
+        <div class="expert-closing">Her focus is excellence before exposure.</div>
+      </div>
+    </div>
+    <!-- Jonathan -->
+    <div class="expert-row expert-row-alt">
+      <div class="expert-photo-side expert-photo-side-dark reveal-right"><img src="jonathan.jpg" alt="Jonathan Desjardins" class="expert-photo-img"><h3 class="expert-name">Jonathan Desjardins</h3><div class="expert-title">Publishing Infrastructure Specialist</div><div class="expert-years">7 Years in the Book Industry</div></div>
+      <div class="expert-content-side expert-content-dark reveal-left">
+        <div class="expert-block"><div class="expert-sec-label"><span>Background</span></div><h4>Professional Foundation</h4><p>Jonathan brings seven years of professional experience. His expertise sits at the intersection of technical publishing operations and strategic market positioning.</p></div>
+        <div class="expert-block"><div class="expert-sec-label"><span>Role at Legavora</span></div><h4>Publishing Infrastructure and Optimization</h4><p>Jonathan oversees publishing infrastructure. He manages Amazon KDP and IngramSpark setup, metadata architecture, ISBN registration, and listing optimization for maximum discoverability.</p></div>
+        <div class="expert-block"><div class="expert-sec-label"><span>What He Delivers</span></div><h4>Outcome</h4><p>Publishing infrastructure that transforms a completed book into a properly published and fully optimized market presence.</p></div>
+        <div class="expert-closing">Precision in infrastructure protects performance in the market.</div>
+      </div>
+    </div>
+    <!-- Mccants -->
+    <div class="expert-row">
+      <div class="expert-photo-side expert-photo-side-light reveal-left"><img src="mccants.jpg" alt="Mccants Ruth" class="expert-photo-img"><h3 class="expert-name">Mccants Ruth</h3><div class="expert-title">Marketing Systems and Campaign Execution Specialist</div><div class="expert-years">4 Years in the Book Industry</div></div>
+      <div class="expert-content-side expert-content-light reveal-right">
+        <div class="expert-block"><div class="expert-sec-label"><span>Background</span></div><h4>Professional Foundation</h4><p>Mccants Ruth brings four years of focused experience concentrated in structured marketing systems and measurable visibility campaigns for authors.</p></div>
+        <div class="expert-block"><div class="expert-sec-label"><span>Role at Legavora</span></div><h4>Marketing Systems and Campaign Execution</h4><p>Mccants leads marketing systems including launch frameworks, paid advertising deployment, email automation, and audience growth mechanisms.</p></div>
+        <div class="expert-block"><div class="expert-sec-label"><span>What She Delivers</span></div><h4>Outcome</h4><p>Marketing infrastructure that creates sustained visibility, drives measurable sales, and builds long term audience platforms.</p></div>
+        <div class="expert-closing">Visibility is built. It is not hoped for.</div>
+      </div>
+    </div>
+  </div>
+
+  <section style="background:var(--navy);padding:90px 50px;text-align:center">
+    <div style="max-width:740px;margin:0 auto">
+      <div class="sec-label center reveal"><span>The Standard</span></div>
+      <h2 style="font-size:42px;color:var(--ivory);margin:20px 0 24px" class="reveal">One Standard. Every Specialist. Every Project.</h2>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:19px;color:rgba(245,240,232,0.5);line-height:1.75;margin-bottom:44px" class="reveal">Legavora remains the single point of contact. The full depth of the team operates behind that contact.</p>
+      <a class="btn-gold reveal" onclick="go('apply')">Submit Your Project</a>
+    </div>
+  </section>
+
+  <footer class="site-footer"><div class="footer-main"><div class="footer-inner"><div class="footer-grid"><div><img src="legavora.png" alt="Legavora" class="footer-brand-logo"><div class="footer-brand-name">Legavora</div><div class="footer-brand-sub">Literary Agency and Book Production House</div><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div><div><div class="footer-heading">Navigation</div><ul class="footer-links"><li><a onclick="go('home')">Home</a></li><li><a onclick="go('about')">About</a></li><li><a onclick="go('services')">Services</a></li><li><a onclick="go('experts')">Our Experts</a></li><li><a onclick="go('authors')">Featured Authors</a></li><li><a onclick="go('apply')">Apply</a></li></ul></div><div><div class="footer-heading">Services</div><ul class="footer-links"><li><a>Editorial</a></li><li><a>Design</a></li><li><a>Infrastructure</a></li><li><a>Marketing</a></li></ul></div><div><div class="footer-heading">Contact</div><p class="footer-contact-text">All communications through email.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div></div></div></div><div class="footer-bottom"><div class="footer-copy">Copyright 2025 Legavora. All rights reserved.</div><div class="footer-legal">All services subject to availability and selective acceptance.</div></div></footer>
+</div>
+
+<!-- =============================================
+     FEATURED AUTHORS PAGE
+============================================= -->
+<div id="authors" class="page">
+  <section class="feat-hero">
+    <div class="sec-label center reveal"><span>Featured Authors</span></div>
+    <h1 class="reveal">Authors Carried Forward by the Legavora System</h1>
+    <p class="reveal">Every author featured here moved through the Legavora process with comprehensive professional support. These are outcomes built through partnership.</p>
+  </section>
+
+  <!-- James Victor -->
+  <div class="feat-author-block reveal">
+    <div class="feat-book-side feat-book-side-light">
+      <a href="#" target="_blank"><img src="James 1s.webp" alt="James Victor" class="feat-author-photo"></a>
+      <a href="#" target="_blank"><img src="James 2s.jpg" alt="James Victor Book" class="feat-book-img"></a>
+      <a href="#" target="_blank" class="feat-amazon"><i class="fab fa-amazon"></i> View on Amazon</a>
+    </div>
+    <div class="feat-content-side feat-content-light">
+      <div class="feat-genre">Contemporary Literature</div>
+      <h2 class="feat-name">James Victor</h2>
+      <div class="feat-book-title">James Victor Book</div>
+      <a href="mailto:jamesdavidvictor6@gmail.com" class="feat-email"><i class="fas fa-envelope"></i> jamesdavidvictor6@gmail.com</a>
+      <p class="feat-desc">James Victor is a talented author whose work has resonated deeply with readers across multiple communities. His book represents a powerful voice in contemporary literature, bringing fresh perspectives and compelling narratives that captivate audiences from the very first page.</p>
+      <div class="feat-eng-label">The Legavora Engagement</div><div class="feat-rule"></div>
+      <p class="feat-eng-body">Working with James involved developing a comprehensive marketing strategy tailored specifically to his book's unique positioning and target audience. Through strategic Amazon optimization, audience targeting, and professional brand positioning, Legavora established a strong market presence driving consistent engagement and measurable results. Every decision was documented through structured email communication.</p>
+      <p class="feat-quote">"Working with Janet has been exceptional. Her professionalism, strategic approach, and commitment to documenting every step gave me complete confidence in the partnership. The results speak for themselves."</p>
+      <div class="feat-quote-attr">James Victor</div>
+    </div>
+  </div>
+
+  <!-- Kate Cullen -->
+  <div class="feat-author-block feat-author-block-alt reveal">
+    <div class="feat-book-side feat-book-side-dark">
+      <a href="#" target="_blank"><img src="Katie 1s.webp" alt="Kate Cullen" class="feat-author-photo"></a>
+      <a href="#" target="_blank"><img src="Katie 2s.jpg" alt="Kate Cullen Book" class="feat-book-img"></a>
+      <a href="#" target="_blank" class="feat-amazon"><i class="fab fa-amazon"></i> View on Amazon</a>
+    </div>
+    <div class="feat-content-side feat-content-dark">
+      <div class="feat-genre">Literary Fiction</div>
+      <h2 class="feat-name">Kate Cullen</h2>
+      <div class="feat-book-title">Kate Cullen Book</div>
+      <a href="mailto:katecullen473@gmail.com" class="feat-email"><i class="fas fa-envelope"></i> katecullen473@gmail.com</a>
+      <p class="feat-desc">Kate Cullen is an accomplished author whose writing carries a distinctive voice and an ability to connect with readers on a deeply personal level. Her book has made a meaningful impact within her genre, earning recognition for its authenticity and powerful storytelling.</p>
+      <div class="feat-eng-label">The Legavora Engagement</div><div class="feat-rule"></div>
+      <p class="feat-eng-body">Kate's engagement involved strategic positioning within her genre, comprehensive Amazon listing optimization, and professional author brand development designed to resonate with her target readership. Every element was documented through structured email communication ensuring complete transparency.</p>
+      <p class="feat-quote">"Janet's structured approach gave me something I had never experienced before, complete clarity and confidence in what was happening with my book. Every update documented, every decision recorded. I always knew exactly where things stood."</p>
+      <div class="feat-quote-attr">Kate Cullen</div>
+    </div>
+  </div>
+
+  <!-- Rachael C. Duncan -->
+  <div class="feat-author-block reveal">
+    <div class="feat-book-side feat-book-side-light">
+      <a href="#" target="_blank"><img src="Duncan 1s.webp" alt="Rachael C. Duncan" class="feat-author-photo"></a>
+      <a href="#" target="_blank"><img src="Duncan 2s.jpg" alt="Rachael C. Duncan Book" class="feat-book-img"></a>
+      <a href="#" target="_blank" class="feat-amazon"><i class="fab fa-amazon"></i> View on Amazon</a>
+    </div>
+    <div class="feat-content-side feat-content-light">
+      <div class="feat-genre">Narrative Nonfiction</div>
+      <h2 class="feat-name">Rachael C. Duncan</h2>
+      <div class="feat-book-title">Rachael C. Duncan Book</div>
+      <a href="mailto:authorrachaelduncan@gmail.com" class="feat-email"><i class="fas fa-envelope"></i> authorrachaelduncan@gmail.com</a>
+      <p class="feat-desc">Rachael C. Duncan is a distinguished author whose literary work demonstrates both creative depth and commercial appeal. Her book has attracted a dedicated readership through compelling narrative and quality craft, establishing her as a notable voice in the publishing space.</p>
+      <div class="feat-eng-label">The Legavora Engagement</div><div class="feat-rule"></div>
+      <p class="feat-eng-body">The partnership encompassed Amazon optimization, keyword research, author brand development, and targeted visibility campaigns designed specifically around her book and audience. Nothing was templated. Everything was built from the ground up. Structured email documentation ensured complete transparency throughout.</p>
+      <p class="feat-quote">"What sets Janet apart is her genuine commitment to each project. She does not use templates. Everything was built specifically for my book and my audience. The email documentation meant I could track every single thing that was done. Truly professional."</p>
+      <div class="feat-quote-attr">Rachael C. Duncan</div>
+    </div>
+  </div>
+
+  <section class="sec-cta"><h2 class="reveal">Build Your Author Career With the Same Standard</h2><p class="reveal">The Legavora roster is limited by design.</p><a class="btn-dark reveal" onclick="go('apply')">Submit Your Project</a><a href="mailto:hello@legavora.com" class="cta-email">hello@legavora.com</a></section>
+
+  <footer class="site-footer"><div class="footer-main"><div class="footer-inner"><div class="footer-grid"><div><img src="legavora.png" alt="Legavora" class="footer-brand-logo"><div class="footer-brand-name">Legavora</div><div class="footer-brand-sub">Literary Agency and Book Production House</div><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div><div><div class="footer-heading">Navigation</div><ul class="footer-links"><li><a onclick="go('home')">Home</a></li><li><a onclick="go('about')">About</a></li><li><a onclick="go('services')">Services</a></li><li><a onclick="go('experts')">Our Experts</a></li><li><a onclick="go('authors')">Featured Authors</a></li><li><a onclick="go('apply')">Apply</a></li></ul></div><div><div class="footer-heading">Services</div><ul class="footer-links"><li><a>Editorial</a></li><li><a>Design</a></li><li><a>Infrastructure</a></li><li><a>Marketing</a></li></ul></div><div><div class="footer-heading">Contact</div><p class="footer-contact-text">All communications through email.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div></div></div></div><div class="footer-bottom"><div class="footer-copy">Copyright 2025 Legavora. All rights reserved.</div><div class="footer-legal">All services subject to availability and selective acceptance.</div></div></footer>
+</div>
+
+<!-- =============================================
+     APPLY PAGE
+============================================= -->
+<div id="apply" class="page">
+  <section class="apply-hero">
+    <div class="sec-label center reveal"><span>Begin the Process</span></div>
+    <h1 class="reveal">Apply to Work With Legavora</h1>
+    <p class="reveal">Legavora operates on a selective model. We review every inquiry and accept projects where we can deliver structured, measurable results.</p>
+  </section>
+
+  <section class="apply-steps-sec">
+    <div class="sec-label center reveal"><span>What to Expect</span></div>
+    <h2 class="reveal">A Professional Engagement From the First Interaction</h2>
+    <div class="apply-steps stagger-children reveal">
+      <div class="apply-step"><div class="apply-step-num">01</div><h3>Submit Your Application</h3><p>Complete the form below with your project details. Every application is treated as a professional submission.</p></div>
+      <div class="apply-step"><div class="apply-step-num">02</div><h3>Internal Review</h3><p>Legavora reviews your project against fit, scope, timeline, and strength of match with our capabilities.</p></div>
+      <div class="apply-step"><div class="apply-step-num">03</div><h3>Professional Response</h3><p>You receive a response with next steps or a respectful explanation. Every application receives a response.</p></div>
+    </div>
+  </section>
+
+  <section class="apply-form-sec">
+    <div class="apply-form-inner">
+      <div class="sec-label center reveal"><span>Your Application</span></div>
+      <h2 class="reveal">Submit Your Project Details</h2>
+      <p class="reveal">Every field helps Legavora understand your project and assess the best path forward for your career.</p>
+
+      <form action="https://formspree.io/f/xdaqobko" method="POST" class="apply-form reveal">
+        <div class="form-row">
+          <div class="form-group"><label for="name">Your Full Name</label><input type="text" id="name" name="Full Name" required placeholder="The name under which you write or publish"></div>
+          <div class="form-group"><label for="email">Your Email Address</label><input type="email" id="email" name="Email" required placeholder="Primary email for correspondence"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="bookTitle">Book Title</label><input type="text" id="bookTitle" name="Book Title" required placeholder="Current working title"></div>
+          <div class="form-group"><label for="genre">Genre and Target Audience</label><input type="text" id="genre" name="Genre" required placeholder="e.g. Literary Fiction for readers 25-45"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="wordCount">Current Word Count</label><input type="text" id="wordCount" name="Word Count" placeholder="Approximate word count"></div>
+          <div class="form-group"><label for="stage">Manuscript Stage</label><select id="stage" name="Manuscript Stage" required><option value="" disabled selected>Select stage</option><option>First Draft</option><option>Revised Draft</option><option>Complete Manuscript</option><option>Previously Published</option><option>Other</option></select></div>
+        </div>
+        <div class="form-group"><label for="services">Services You Are Seeking</label><textarea id="services" name="Services" rows="3" placeholder="Which areas of the Legavora system does your project need?"></textarea></div>
+        <div class="form-group"><label for="goals">Your Goals</label><textarea id="goals" name="Goals" rows="4" required placeholder="What do you want this book to achieve? What are you building toward?"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label for="timeline">Target Timeline</label><input type="text" id="timeline" name="Timeline" placeholder="When would you like to publish?"></div>
+          <div class="form-group"><label for="ref">How Did You Find Legavora?</label><input type="text" id="ref" name="Referral" placeholder="Search, referral, social media, etc."></div>
+        </div>
+        <div class="form-group"><label for="extra">Additional Context</label><textarea id="extra" name="Additional" rows="3" placeholder="Anything else relevant to your project."></textarea></div>
+        <input type="hidden" name="_subject" value="New Legavora Project Application">
+        <div class="form-submit"><button type="submit" class="btn-gold" style="width:100%;text-align:center">Submit Application</button></div>
+        <p class="form-note"><i class="fas fa-lock"></i> All submissions handled with strict confidentiality. You will receive a response to every application.</p>
+        <p class="form-note"><i class="fas fa-envelope"></i> All communication conducted exclusively through email for documentation and accountability.</p>
+      </form>
+    </div>
+  </section>
+
+  <section class="sec-cta"><h2 class="reveal">The Right Partnership Changes Everything</h2><p class="reveal">The difference between a lasting career and a disappearing book is almost never talent. It is infrastructure, strategy, and professional execution.</p><a href="mailto:hello@legavora.com" class="btn-dark reveal">Or Email Directly: hello@legavora.com</a><a href="mailto:hello@legavora.com" class="cta-email">hello@legavora.com</a></section>
+
+  <footer class="site-footer"><div class="footer-main"><div class="footer-inner"><div class="footer-grid"><div><img src="legavora.png" alt="Legavora" class="footer-brand-logo"><div class="footer-brand-name">Legavora</div><div class="footer-brand-sub">Literary Agency and Book Production House</div><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div><div><div class="footer-heading">Navigation</div><ul class="footer-links"><li><a onclick="go('home')">Home</a></li><li><a onclick="go('about')">About</a></li><li><a onclick="go('services')">Services</a></li><li><a onclick="go('experts')">Our Experts</a></li><li><a onclick="go('authors')">Featured Authors</a></li><li><a onclick="go('apply')">Apply</a></li></ul></div><div><div class="footer-heading">Services</div><ul class="footer-links"><li><a>Editorial</a></li><li><a>Design</a></li><li><a>Infrastructure</a></li><li><a>Marketing</a></li></ul></div><div><div class="footer-heading">Contact</div><p class="footer-contact-text">All communications through email.</p><a href="mailto:hello@legavora.com" class="footer-email"><i class="fas fa-envelope"></i> hello@legavora.com</a></div></div></div></div><div class="footer-bottom"><div class="footer-copy">Copyright 2025 Legavora. All rights reserved.</div><div class="footer-legal">All services subject to availability and selective acceptance.</div></div></footer>
+</div>
+
+<!-- =============================================
+     JAVASCRIPT
+============================================= -->
+<script>
+// PRELOADER
+window.addEventListener('load',function(){setTimeout(function(){document.getElementById('preloader').classList.add('hide')},2400)});
+
+// PAGE NAVIGATION
+function go(id){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');p.style.opacity='0'});
+  var t=document.getElementById(id);t.classList.add('active');
+  window.scrollTo({top:0,behavior:'instant'});
+  setTimeout(function(){t.style.opacity='1';initReveal()},60);
+}
+
+// MOBILE MENU
+function toggleMob(){document.getElementById('hamburger').classList.toggle('open');document.getElementById('mobOverlay').classList.toggle('open');document.body.style.overflow=document.getElementById('mobOverlay').classList.contains('open')?'hidden':''}
+function closeMob(){document.getElementById('hamburger').classList.remove('open');document.getElementById('mobOverlay').classList.remove('open');document.body.style.overflow=''}
+
+// SCROLL EVENTS
+window.addEventListener('scroll',function(){
+  var s=window.scrollY;
+  document.getElementById('navbar').classList.toggle('scrolled',s>80);
+  document.getElementById('btt').classList.toggle('show',s>500);
+});
+
+// CURSOR GLOW
+var cg=document.getElementById('cursorGlow');
+if(window.innerWidth>768){document.addEventListener('mousemove',function(e){cg.style.left=e.clientX+'px';cg.style.top=e.clientY+'px'})}else{cg.style.display='none'}
+
+// PARTICLES
+(function(){
+  var c=document.getElementById('particles');if(!c)return;
+  for(var i=0;i<25;i++){
+    var p=document.createElement('div');p.className='particle';
+    p.style.left=Math.random()*100+'%';
+    p.style.animationDuration=(Math.random()*18+10)+'s';
+    p.style.animationDelay=(Math.random()*12)+'s';
+    var sz=Math.random()*2.5+1;p.style.width=sz+'px';p.style.height=sz+'px';
+    c.appendChild(p);
+  }
+})();
+
+// SCROLL REVEAL
+function initReveal(){
+  var els=document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale,.stagger-children');
+  var obs=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}});
+  },{threshold:0.08,rootMargin:'0px 0px -40px 0px'});
+  els.forEach(function(el){if(!el.classList.contains('visible')){obs.observe(el)}});
+}
+initReveal();
+
+// SERVICE TAB SCROLL
+function svcScroll(i,btn){
+  document.querySelectorAll('.svc-tab').forEach(function(t){t.classList.remove('active')});
+  btn.classList.add('active');
+  var sec=document.getElementById('svc-'+i);
+  if(sec){window.scrollTo({top:sec.offsetTop-130,behavior:'smooth'})}
+}
+</script>
+</body>
+</html>
