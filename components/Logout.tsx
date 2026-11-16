@@ -1,0 +1,1 @@
+'use client';import {browserDb} from '@/lib/supabase';import {useRouter} from 'next/navigation';export default function Logout(){const router=useRouter();return <button className="btn-outline" onClick={async()=>{await browserDb().auth.signOut();router.push('/');router.refresh()}}>Sign Out</button>}
