@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const fileId = request.nextUrl.searchParams.get('fileId');
+   const fileId = request.nextUrl.searchParams.get('id');
 
     if (!fileId) {
       return NextResponse.json(
@@ -72,10 +72,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      url: data.signedUrl,
-      expiresIn: 60,
-    });
+    return NextResponse.redirect(data.signedUrl, 302);
   } catch {
     return NextResponse.json(
       { error: 'Download request failed.' },
