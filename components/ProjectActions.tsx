@@ -28,7 +28,7 @@ export default function ProjectActions({ projectId }: { projectId: string }) {
       file.size === 0 ||
       file.size > MAX_FILE_SIZE
     ) {
-      setMessage('Please select a supported file smaller than 20 MB.');
+      setMessage('Please select a supported file no larger than 50 MB.');
       return;
     }
 
@@ -106,7 +106,7 @@ export default function ProjectActions({ projectId }: { projectId: string }) {
       </h3>
 
       <p className="text-sm text-slate-600">
-        Allowed: PDF, DOCX, EPUB, JPG and PNG. Maximum 20 MB.
+        Allowed: PDF, DOCX, EPUB, JPG and PNG. Maximum 50 MB.
       </p>
 
       <input
