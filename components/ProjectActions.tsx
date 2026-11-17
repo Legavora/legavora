@@ -3,7 +3,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { browserDb } from '@/lib/supabase';
+import { browserDb } from '@/lib/supabase-browser';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'epub', 'jpg', 'jpeg', 'png'];
