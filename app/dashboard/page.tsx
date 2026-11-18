@@ -1,1 +1,148 @@
-import {currentUser} from '@/lib/supabase';import {redirect} from 'next/navigation';import Link from 'next/link';import Logout from '@/components/Logout';export const dynamic='force-dynamic';export default async function Dashboard(){const {db,user}=await currentUser();if(!user)redirect('/login');const {data:projects}=await db.from('projects').select('id,title,status,stage,created_at').order('created_at',{ascending:false});const {data:invoices}=await db.from('invoices').select('id,amount_cents,currency,status,description').order('created_at',{ascending:false});return <div className="max-w-7xl mx-auto px-5 py-14"><div className="flex justify-between flex-wrap gap-4 items-center"><div><p className="eyebrow">AUTHOR PORTAL</p><h1 className="heading text-4xl mt-2">My Publishing Workspace</h1><p className="text-slate-600 mt-2">{user.email}</p></div><Logout/></div><div className="grid md:grid-cols-3 gap-5 mt-10"><div className="panel"><p className="text-slate-500">My projects</p><p className="text-4xl font-serif mt-2">{projects?.length||0}</p></div><div className="panel"><p className="text-slate-500">Awaiting payment</p><p className="text-4xl font-serif mt-2">{invoices?.filter(i=>i.status==='pending').length||0}</p></div><div className="panel"><p className="text-slate-500">Your royalties</p><p className="text-sm mt-4">Paid directly by your distributors, not Legavora.</p></div></div><div className="flex justify-between items-center mt-12"><h2 className="heading text-3xl">Publishing projects</h2><Link href="/dashboard/new" className="btn">New Project</Link></div><div className="grid md:grid-cols-2 gap-5 mt-5">{projects?.length?projects.map(p=><Link href={`/dashboard/projects/${p.id}`} className="panel hover:border-gold" key={p.id}><h3 className="font-serif text-2xl">{p.title}</h3><p className="mt-3 text-slate-600">Status: {p.status}</p><p className="text-slate-600">Stage: {p.stage}</p></Link>):<div className="panel">You have no projects yet. Start by submitting your manuscript.</div>}</div><h2 className="heading text-3xl mt-12">Invoices</h2><div className="grid gap-3 mt-5">{invoices?.length?invoices.map(i=><div key={i.id} className="panel flex justify-between flex-wrap items-center gap-3"><div><p className="font-semibold">{i.description||'Publishing services'}</p><p className="text-sm text-slate-600">{i.status} · {i.currency}</p></div><div className="flex items-center gap-4"><b>${(i.amount_cents/100).toFixed(2)}</b>{i.status==='pending'&&<form action="/api/paystack/initialize" method="POST"><input type="hidden" name="invoice_id" value={i.id}/><button className="btn">Pay Invoice</button></form>}</div></div>):<div className="panel">No invoices yet.</div>}</div></div>}
+
+import { currentUser } from '@/lib/supabase';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import Logout from '@/components/Logout';
+
+export const dynamic = 'force-dynamic';
+
+export default async function Dashboard() {
+  const { db, user } = await currentUser();
+
+  if (!user) redirect('/login');
+
+  const { data: profile, error: profileError } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error('Unable to verify account role.');
+  }
+
+  if (profile.role === 'admin') {
+    redirect('/admin');
+  }
+
+  if (profile.role !== 'author') {
+    throw new Error('This workspace is for authors only.');
+  }
+
+  const [{ data: projects }, { data: invoices }] =
+    await Promise.all([
+      db
+        .from('projects')
+        .select('id,title,status,stage,created_at')
+        .order('created_at', { ascending: false }),
+      db
+        .from('invoices')
+        .select('id,amount_cents,currency,status,description')
+        .order('created_at', { ascending: false }),
+    ]);
+
+  return (
+    <div className="max-w-7xl mx-auto px-5 py-14">
+      <div className="flex justify-between flex-wrap gap-4 items-center">
+        <div>
+          <p className="eyebrow">AUTHOR PORTAL</p>
+          <h1 className="heading text-4xl mt-2">
+            My Publishing Workspace
+          </h1>
+          <p className="text-slate-600 mt-2">{user.email}</p>
+        </div>
+        <Logout />
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-5 mt-10">
+        <div className="panel">
+          <p className="text-slate-500">My projects</p>
+          <p className="text-4xl font-serif mt-2">
+            {projects?.length || 0}
+          </p>
+        </div>
+        <div className="panel">
+          <p className="text-slate-500">Awaiting payment</p>
+          <p className="text-4xl font-serif mt-2">
+            {invoices?.filter(i => i.status === 'pending').length || 0}
+          </p>
+        </div>
+        <div className="panel">
+          <p className="text-slate-500">Your royalties</p>
+          <p className="text-sm mt-4">
+            Paid directly by your distributors, not Legavora.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mt-12">
+        <h2 className="heading text-3xl">Publishing projects</h2>
+        <Link href="/dashboard/new" className="btn">
+          New Project
+        </Link>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-5 mt-5">
+        {projects?.length ? (
+          projects.map(p => (
+            <Link
+              href={`/dashboard/projects/${p.id}`}
+              className="panel hover:border-gold"
+              key={p.id}
+            >
+              <h3 className="font-serif text-2xl">{p.title}</h3>
+              <p className="mt-3 text-slate-600">
+                Status: {p.status}
+              </p>
+              <p className="text-slate-600">Stage: {p.stage}</p>
+            </Link>
+          ))
+        ) : (
+          <div className="panel">
+            You have no projects yet. Start by submitting your manuscript.
+          </div>
+        )}
+      </div>
+
+      <h2 className="heading text-3xl mt-12">Invoices</h2>
+
+      <div className="grid gap-3 mt-5">
+        {invoices?.length ? (
+          invoices.map(i => (
+            <div
+              key={i.id}
+              className="panel flex justify-between flex-wrap items-center gap-3"
+            >
+              <div>
+                <p className="font-semibold">
+                  {i.description || 'Publishing services'}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {i.status} · {i.currency}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <b>${(i.amount_cents / 100).toFixed(2)}</b>
+                {i.status === 'pending' && (
+                  <form
+                    action="/api/paystack/initialize"
+                    method="POST"
+                  >
+                    <input
+                      type="hidden"
+                      name="invoice_id"
+                      value={i.id}
+                    />
+                    <button className="btn">Pay Invoice</button>
+                  </form>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="panel">No invoices yet.</div>
+        )}
+      </div>
+    </div>
+  );
+}
