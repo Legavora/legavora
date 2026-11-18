@@ -3,6 +3,7 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { browserDb } from '@/lib/supabase-browser';
 
 type Props = {
   projectId: string;
@@ -14,7 +15,15 @@ type Props = {
 };
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const ALLOWED = ['pdf', 'docx', 'epub', 'jpg', 'jpeg', 'png'];
+
+const ALLOWED = [
+  'pdf',
+  'docx',
+  'epub',
+  'jpg',
+  'jpeg',
+  'png',
+];
 
 export default function AdminRevisionUpload({
   projectId,
@@ -30,7 +39,10 @@ export default function AdminRevisionUpload({
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!file || busy) return;
+
+    if (busy || !file || !previousFileId || !notes.trim()) {
+      return;
+    }
 
     const extension = file.name.split('.').pop()?.toLowerCase();
 
@@ -40,7 +52,7 @@ export default function AdminRevisionUpload({
       file.size === 0 ||
       file.size > MAX_FILE_SIZE
     ) {
-      setMessage('Choose a supported file up to 50 MB.');
+      setMessage('Choose a supported file no larger than 50 MB.');
       return;
     }
 
@@ -48,24 +60,105 @@ export default function AdminRevisionUpload({
     setMessage('');
 
     try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('project_id', projectId);
-      form.append('previous_file_id', previousFileId);
-      form.append('revision_notes', notes);
+      const db = browserDb();
 
-      const response = await fetch('/api/admin/files/revise', {
-        method: 'POST',
-        body: form,
-      });
+      const { data: authData, error: authError } =
+        await db.auth.getUser();
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Upload failed.');
+      if (authError || !authData.user) {
+        throw new Error(
+          'Your session has expired. Please sign in again.'
+        );
       }
 
-      setMessage('Revised file uploaded successfully.');
+      const userId = authData.user.id;
+
+      const { data: profile, error: profileError } =
+        await db
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+      if (
+        profileError ||
+        !profile ||
+        !['admin', 'manager'].includes(profile.role)
+      ) {
+        throw new Error('Administrator access required.');
+      }
+
+      const fileId = crypto.randomUUID();
+
+      const storagePath =
+        `${userId}/${projectId}/${fileId}.${extension}`;
+
+      // Upload the document directly to private Supabase Storage.
+      const { error: uploadError } = await db.storage
+        .from('manuscripts')
+        .upload(storagePath, file, {
+          upsert: false,
+          contentType:
+            file.type || 'application/octet-stream',
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      // Register the revision using the server API.
+      let response: Response;
+
+      try {
+        response = await fetch('/api/admin/files/revise', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            previous_file_id: previousFileId,
+            storage_path: storagePath,
+            file_name: file.name,
+            size_bytes: file.size,
+            revision_notes: notes.trim(),
+          }),
+        });
+      } catch {
+        throw new Error(
+          'File uploaded, but revision registration failed. ' +
+          'Contact an administrator before retrying.'
+        );
+      }
+
+      const responseText = await response.text();
+
+      let result: {
+        ok?: boolean;
+        error?: string;
+        version_number?: number;
+      } = {};
+
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          'The server returned an unexpected response. ' +
+          'Please check the deployment logs.'
+        );
+      }
+
+      if (!response.ok || !result.ok) {
+        throw new Error(
+          result.error || 'Unable to register revised file.'
+        );
+      }
+
+      setMessage(
+        `Revised file uploaded successfully. ` +
+        `Version ${result.version_number ?? 'new'} created.`
+      );
+
       setFile(null);
       setPreviousFileId('');
       setNotes('');
@@ -93,17 +186,22 @@ export default function AdminRevisionUpload({
       </h5>
 
       <div>
-        <label className="block text-sm mb-2">
+        <label
+          htmlFor="revision-original"
+          className="block text-sm mb-2"
+        >
           File being revised
         </label>
 
         <select
+          id="revision-original"
           value={previousFileId}
           onChange={(event) =>
             setPreviousFileId(event.target.value)
           }
           className="w-full"
           required
+          disabled={busy}
         >
           <option value="">Select an existing file</option>
 
@@ -117,15 +215,20 @@ export default function AdminRevisionUpload({
       </div>
 
       <div>
-        <label className="block text-sm mb-2">
+        <label
+          htmlFor="revision-document"
+          className="block text-sm mb-2"
+        >
           Revised document
         </label>
 
         <input
+          id="revision-document"
           ref={inputRef}
           type="file"
           accept=".pdf,.docx,.epub,.jpg,.jpeg,.png"
           required
+          disabled={busy}
           onChange={(event) =>
             setFile(event.target.files?.[0] ?? null)
           }
@@ -137,30 +240,44 @@ export default function AdminRevisionUpload({
       </div>
 
       <div>
-        <label className="block text-sm mb-2">
+        <label
+          htmlFor="revision-notes"
+          className="block text-sm mb-2"
+        >
           Revision notes
         </label>
 
         <textarea
+          id="revision-notes"
           value={notes}
-          onChange={(event) => setNotes(event.target.value)}
+          onChange={(event) =>
+            setNotes(event.target.value)
+          }
           placeholder="Describe the corrections or changes made."
           rows={4}
           className="w-full"
           required
+          disabled={busy}
         />
       </div>
 
       <button
         type="submit"
         className="btn"
-        disabled={busy || !file || !previousFileId || !notes.trim()}
+        disabled={
+          busy ||
+          !file ||
+          !previousFileId ||
+          !notes.trim()
+        }
       >
-        {busy ? 'Uploading revision...' : 'Upload Revised Version'}
+        {busy
+          ? 'Uploading revision...'
+          : 'Upload Revised Version'}
       </button>
 
       {message && (
-        <p role="status" className="text-sm">
+        <p role="status" className="text-sm mt-3">
           {message}
         </p>
       )}
