@@ -24,10 +24,7 @@ export default async function AuthorsManagement({
     .eq('id', user.id)
     .single();
 
-  if (
-    !profile ||
-    !['admin', 'manager'].includes(profile.role)
-  ) {
+  if (!profile || !['admin', 'manager'].includes(profile.role)) {
     redirect('/dashboard');
   }
 
@@ -37,22 +34,16 @@ export default async function AuthorsManagement({
     typeof params.q === 'string' ? params.q : ''
   ).trim().toLowerCase();
 
-  const { data: authors, error: authorsError } =
-    await db
-      .from('profiles')
-      .select(
-        'id,full_name,role,created_at,author_number'
-      )
-      .eq('role', 'author')
-      .order('created_at', { ascending: true });
+  const { data: authors, error: authorsError } = await db
+    .from('profiles')
+    .select('id,full_name,role,created_at,author_number')
+    .eq('role', 'author')
+    .order('created_at', { ascending: true });
 
-  const { data: projects, error: projectsError } =
-    await db
-      .from('projects')
-      .select(
-        'id,author_id,title,status,stage'
-      )
-      .order('created_at', { ascending: false });
+  const { data: projects, error: projectsError } = await db
+    .from('projects')
+    .select('id,author_id,title,status,stage')
+    .order('created_at', { ascending: false });
 
   const authorList = authors ?? [];
   const projectList = projects ?? [];
@@ -69,38 +60,30 @@ export default async function AuthorsManagement({
 
     return (
       !query ||
-      (author.full_name ?? '')
-        .toLowerCase()
-        .includes(query) ||
+      (author.full_name ?? '').toLowerCase().includes(query) ||
       authorId.toLowerCase().includes(query) ||
       authorProjects.some((project) =>
-        (project.title ?? '')
-          .toLowerCase()
-          .includes(query)
+        (project.title ?? '').toLowerCase().includes(query)
       )
     );
   });
 
   return (
     <main className="max-w-7xl mx-auto px-5 py-16">
-      <Link
-        href="/admin"
-        className="text-sm underline"
-      >
+      <Link href="/admin" className="text-sm underline">
         Back to Administration
       </Link>
 
-      <p className="eyebrow mt-10">
-        LEGAVORA OPERATIONS
-      </p>
+      <p className="eyebrow mt-10">LEGAVORA OPERATIONS</p>
 
       <h1 className="heading text-4xl mt-3">
         Authors Management
       </h1>
 
       <p className="text-slate-600 mt-3">
-        Search registered authors by name,
-        publishing project or Legavora Author ID.
+        Search registered authors by name, publishing project
+        or Legavora Author ID. Select an author to view their
+        individual profile.
       </p>
 
       <form
@@ -117,10 +100,7 @@ export default async function AuthorsManagement({
           className="flex-1 min-w-0"
         />
 
-        <button
-          type="submit"
-          className="btn"
-        >
+        <button type="submit" className="btn">
           Search
         </button>
 
@@ -138,8 +118,7 @@ export default async function AuthorsManagement({
         <div className="panel mt-8">
           <p className="text-red-700">
             Unable to load author records or publishing
-            projects. Please check the database connection
-            and access permissions.
+            projects. Please check database access permissions.
           </p>
         </div>
       ) : (
@@ -151,8 +130,7 @@ export default async function AuthorsManagement({
           <div className="grid gap-5 mt-5">
             {filteredAuthors.map((author) => {
               const authorProjects = projectList.filter(
-                (project) =>
-                  project.author_id === author.id
+                (project) => project.author_id === author.id
               );
 
               const authorId =
@@ -160,16 +138,19 @@ export default async function AuthorsManagement({
                   ? `LG-${author.author_number}`
                   : 'Not assigned';
 
+              const authorUrl = `/admin/authors/${author.id}`;
+
               return (
-                <article
-                  className="panel"
-                  key={author.id}
-                >
+                <article className="panel" key={author.id}>
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <h2 className="font-serif text-2xl">
-                        {author.full_name ||
-                          'Unnamed Author'}
+                        <Link
+                          href={authorUrl}
+                          className="hover:underline"
+                        >
+                          {author.full_name || 'Unnamed Author'}
+                        </Link>
                       </h2>
 
                       <p className="text-slate-600 mt-2">
@@ -183,15 +164,12 @@ export default async function AuthorsManagement({
                         Registered:{' '}
                         {new Date(
                           author.created_at
-                        ).toLocaleDateString(
-                          'en-GB',
-                          {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                            timeZone: 'UTC',
-                          }
-                        )}
+                        ).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          timeZone: 'UTC',
+                        })}
                       </p>
                     </div>
 
@@ -202,8 +180,7 @@ export default async function AuthorsManagement({
 
                   <div className="border-t mt-7 pt-6">
                     <h3 className="font-semibold text-lg">
-                      Publishing Projects (
-                      {authorProjects.length})
+                      Publishing Projects ({authorProjects.length})
                     </h3>
 
                     {authorProjects.length === 0 ? (
@@ -212,30 +189,35 @@ export default async function AuthorsManagement({
                       </p>
                     ) : (
                       <div className="grid gap-3 mt-4">
-                        {authorProjects.map(
-                          (project) => (
-                            <div
-                              key={project.id}
-                              className="rounded-lg border p-4"
-                            >
-                              <h4 className="font-serif text-xl">
-                                {project.title}
-                              </h4>
+                        {authorProjects.map((project) => (
+                          <div
+                            key={project.id}
+                            className="rounded-lg border p-4"
+                          >
+                            <h4 className="font-serif text-xl">
+                              {project.title}
+                            </h4>
 
-                              <p className="text-sm text-slate-600 mt-2">
-                                Status:{' '}
-                                {project.status}
-                              </p>
+                            <p className="text-sm text-slate-600 mt-2">
+                              Status: {project.status}
+                            </p>
 
-                              <p className="text-sm text-slate-600 mt-1">
-                                Stage:{' '}
-                                {project.stage}
-                              </p>
-                            </div>
-                          )
-                        )}
+                            <p className="text-sm text-slate-600 mt-1">
+                              Stage: {project.stage}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     )}
+                  </div>
+
+                  <div className="mt-6">
+                    <Link
+                      href={authorUrl}
+                      className="btn inline-flex items-center justify-center"
+                    >
+                      View Author Profile
+                    </Link>
                   </div>
                 </article>
               );
