@@ -1,4 +1,5 @@
 
+import Link from 'next/link';
 import { currentUser } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import AdminTools from '@/components/AdminTools';
@@ -8,7 +9,9 @@ export const dynamic = 'force-dynamic';
 export default async function Admin() {
   const { db, user } = await currentUser();
 
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
 
   const { data: profile } = await db
     .from('profiles')
@@ -16,7 +19,10 @@ export default async function Admin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin', 'manager'].includes(profile.role)) {
+  if (
+    !profile ||
+    !['admin', 'manager'].includes(profile.role)
+  ) {
     redirect('/dashboard');
   }
 
@@ -30,13 +36,17 @@ export default async function Admin() {
   ] = await Promise.all([
     db
       .from('projects')
-      .select('id,title,status,stage,author_id,created_at')
+      .select(
+        'id,title,status,stage,author_id,created_at'
+      )
       .order('created_at', { ascending: false })
       .limit(100),
 
     db
       .from('invoices')
-      .select('id,description,status,amount_cents,currency')
+      .select(
+        'id,description,status,amount_cents,currency'
+      )
       .limit(100),
 
     db
@@ -62,29 +72,39 @@ export default async function Admin() {
   const metrics = [
     {
       label: 'Total Projects',
-      value: totalError ? 'Unavailable' : totalProjects ?? 0,
+      value: totalError
+        ? 'Unavailable'
+        : totalProjects ?? 0,
       description: 'All publishing projects',
     },
     {
       label: 'Active Projects',
-      value: activeError ? 'Unavailable' : activeProjects ?? 0,
+      value: activeError
+        ? 'Unavailable'
+        : activeProjects ?? 0,
       description: 'In review or in progress',
     },
     {
       label: 'Registered Authors',
-      value: authorsError ? 'Unavailable' : registeredAuthors ?? 0,
+      value: authorsError
+        ? 'Unavailable'
+        : registeredAuthors ?? 0,
       description: 'Author accounts',
     },
     {
       label: 'Awaiting Attention',
-      value: attentionError ? 'Unavailable' : awaitingAttention ?? 0,
+      value: attentionError
+        ? 'Unavailable'
+        : awaitingAttention ?? 0,
       description: 'Newly submitted projects',
     },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-16">
-      <p className="eyebrow">LEGAVORA OPERATIONS</p>
+      <p className="eyebrow">
+        LEGAVORA OPERATIONS
+      </p>
 
       <h1 className="heading text-4xl mt-3">
         Administration
@@ -95,6 +115,17 @@ export default async function Admin() {
         approvals and distribution operations.
       </p>
 
+      {/* Administrator Navigation */}
+      <div className="flex flex-wrap gap-4 mt-8">
+        <Link
+          href="/admin/authors"
+          className="btn inline-flex items-center justify-center"
+        >
+          Manage Authors
+        </Link>
+      </div>
+
+      {/* Operations Overview */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Operations Overview
@@ -102,7 +133,10 @@ export default async function Admin() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           {metrics.map((metric) => (
-            <div className="panel" key={metric.label}>
+            <div
+              className="panel"
+              key={metric.label}
+            >
               <p className="text-sm text-slate-600">
                 {metric.label}
               </p>
@@ -119,6 +153,7 @@ export default async function Admin() {
         </div>
       </section>
 
+      {/* Publishing Projects */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Publishing Projects
@@ -135,7 +170,10 @@ export default async function Admin() {
         ) : (
           <div className="grid gap-4 mt-5">
             {projects.map((project) => (
-              <div className="panel" key={project.id}>
+              <div
+                className="panel"
+                key={project.id}
+              >
                 <h3 className="font-serif text-xl">
                   {project.title}
                 </h3>
@@ -155,6 +193,7 @@ export default async function Admin() {
         )}
       </section>
 
+      {/* Recent Invoices */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Recent Invoices
