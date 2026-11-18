@@ -13,12 +13,30 @@ export async function GET(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'Please sign in to download files.' },
+        { error: 'Please sign in.' },
         { status: 401 }
       );
     }
 
-   const fileId = request.nextUrl.searchParams.get('id');
+    // Only Legavora staff may download project files.
+    const { data: profile, error: profileError } = await db
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (
+      profileError ||
+      !profile ||
+      !['admin', 'manager'].includes(profile.role)
+    ) {
+      return NextResponse.json(
+        { error: 'Administrator access required.' },
+        { status: 403 }
+      );
+    }
+
+    const fileId = request.nextUrl.searchParams.get('id');
 
     if (!fileId) {
       return NextResponse.json(
@@ -42,19 +60,25 @@ export async function GET(request: NextRequest) {
 
     const { data: project, error: projectError } = await db
       .from('projects')
-      .select('id')
+      .select('id, author_id')
       .eq('id', file.project_id)
-      .eq('author_id', user.id)
       .single();
 
     if (projectError || !project) {
       return NextResponse.json(
-        { error: 'You do not have permission to download this file.' },
-        { status: 403 }
+        { error: 'Project not found.' },
+        { status: 404 }
       );
     }
 
-    if (!file.storage_path.startsWith(`${user.id}/${project.id}/`)) {
+    // Files may be uploaded by authors or Legavora staff.
+    const pathParts = file.storage_path.split('/');
+
+    if (
+      pathParts.length !== 3 ||
+      pathParts[1] !== project.id ||
+      ![project.author_id, user.id].includes(pathParts[0])
+    ) {
       return NextResponse.json(
         { error: 'Invalid file location.' },
         { status: 403 }
