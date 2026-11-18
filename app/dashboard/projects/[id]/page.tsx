@@ -16,10 +16,23 @@ export default async function Project({
 
   if (!user) redirect('/login');
 
+  // Confirm this is an author account.
+  const { data: profile } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.role !== 'author') {
+    redirect('/dashboard');
+  }
+
+  // Authors may only access their own projects.
   const { data: p } = await db
     .from('projects')
     .select('*')
     .eq('id', id)
+    .eq('author_id', user.id)
     .single();
 
   if (!p) notFound();
@@ -31,7 +44,8 @@ export default async function Project({
   ] = await Promise.all([
     db.from('project_files')
       .select('id,file_name,created_at')
-      .eq('project_id', id),
+      .eq('project_id', id)
+      .order('created_at', { ascending: false }),
 
     db.from('approvals')
       .select('id,label,status,created_at')
@@ -46,7 +60,9 @@ export default async function Project({
     <div className="max-w-6xl mx-auto px-5 py-16">
       <p className="eyebrow">PUBLISHING PROJECT</p>
 
-      <h1 className="heading text-4xl mt-3">{p.title}</h1>
+      <h1 className="heading text-4xl mt-3">
+        {p.title}
+      </h1>
 
       <p className="text-slate-600 mt-4">
         {p.genre} · {p.service} · {p.status}
@@ -54,41 +70,49 @@ export default async function Project({
 
       <div className="grid md:grid-cols-2 gap-6 mt-8">
         <div className="panel">
-          <h2 className="font-serif text-2xl">Current stage</h2>
+          <h2 className="font-serif text-2xl">
+            Current stage
+          </h2>
+
           <p className="mt-3">{p.stage}</p>
-          <p className="text-slate-600 mt-3">{p.description}</p>
+
+          <p className="text-slate-600 mt-3">
+            {p.description}
+          </p>
         </div>
 
         <div className="panel">
-          <h2 className="font-serif text-2xl">Your files</h2>
+          <h2 className="font-serif text-2xl">
+            Your submitted files
+          </h2>
 
           {files?.length ? (
-            files.map((f) => (
-              <div
-                className="flex items-center justify-between gap-4 border-b py-2"
-                key={f.id}
-              >
-                <span className="text-sm break-all">
-                  {f.file_name}
-                </span>
-
-                <a
-                  href={`/api/files/download?id=${encodeURIComponent(f.id)}`}
-                  className="text-sm font-semibold underline text-[#a67c36] shrink-0"
+            <div className="mt-4 space-y-3">
+              {files.map((f) => (
+                <div
+                  key={f.id}
+                  className="border-b pb-3"
                 >
-                  Download
-                </a>
-              </div>
-            ))
+                  <p className="text-sm font-medium break-all">
+                    {f.file_name}
+                  </p>
+
+                  <p className="text-xs text-slate-500 mt-1">
+                    Submitted to Legavora
+                  </p>
+                </div>
+              ))}
+            </div>
           ) : (
             <p className="text-slate-600 mt-3">
               No files uploaded yet.
             </p>
           )}
 
-          <p className="text-xs text-slate-500 mt-3">
-            For privacy, download links are issued only through
-            authorized access.
+          <p className="text-sm text-slate-600 mt-5">
+            Your documents are securely managed by
+            Legavora. Revised and approved files will
+            be delivered to you through email.
           </p>
         </div>
       </div>
@@ -108,6 +132,7 @@ export default async function Project({
             >
               <div>
                 <b>{a.label}</b>
+
                 <p className="text-sm text-slate-500">
                   {a.status}
                 </p>
@@ -133,11 +158,12 @@ export default async function Project({
         {distribution?.length ? (
           distribution.map((d, i) => (
             <div
-              className="panel flex justify-between"
+              className="panel flex justify-between gap-4"
               key={i}
             >
               <div>
                 <b>{d.platform}</b>
+
                 <p className="text-sm text-slate-500">
                   {d.status}
                 </p>
@@ -158,8 +184,8 @@ export default async function Project({
           ))
         ) : (
           <div className="panel">
-            Distribution begins after final author approval
-            and account authorization.
+            Distribution begins after final author
+            approval and account authorization.
           </div>
         )}
       </div>
