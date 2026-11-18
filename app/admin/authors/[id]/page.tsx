@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
 import AdminTools from '@/components/AdminTools';
+import AdminRevisionUpload from '@/components/AdminRevisionUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,14 +59,13 @@ export default async function AuthorDetails({
 
   if (!author) notFound();
 
-  const { data: projects, error: projectsError } =
-    await db
-      .from('projects')
-      .select(
-        'id,title,status,stage,genre,description,created_at'
-      )
-      .eq('author_id', author.id)
-      .order('created_at', { ascending: false });
+  const { data: projects, error: projectsError } = await db
+    .from('projects')
+    .select(
+      'id,title,status,stage,genre,description,created_at'
+    )
+    .eq('author_id', author.id)
+    .order('created_at', { ascending: false });
 
   if (projectsError) {
     throw new Error('Unable to load publishing projects.');
@@ -75,16 +75,18 @@ export default async function AuthorDetails({
   const projectIds = projectList.map((project) => project.id);
 
   const { data: files, error: filesError } =
-    projectIds.length
+    projectIds.length > 0
       ? await db
           .from('project_files')
           .select('*')
           .in('project_id', projectIds)
+          .order('created_at', { ascending: false })
       : { data: [], error: null };
 
-  const authorId = author.author_number
-    ? `LG-${author.author_number}`
-    : 'Not assigned';
+  const authorId =
+    author.author_number != null
+      ? `LG-${author.author_number}`
+      : 'Not assigned';
 
   const activeProjects = projectList.filter((project) =>
     ['in_review', 'in_progress'].includes(project.status)
@@ -143,7 +145,9 @@ export default async function AuthorDetails({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <div>
-            <p className="text-sm text-slate-500">Full Name</p>
+            <p className="text-sm text-slate-500">
+              Full Name
+            </p>
             <p className="font-semibold mt-1">
               {author.full_name || 'Not provided'}
             </p>
@@ -283,8 +287,8 @@ export default async function AuthorDetails({
 
                   <div className="border-t mt-8 pt-7">
                     <h4 className="font-semibold text-xl">
-                      Manuscripts & Project Files
-                      ({projectFiles.length})
+                      Manuscripts &amp; Project Files
+                      {' '}({projectFiles.length})
                     </h4>
 
                     {filesError ? (
@@ -301,8 +305,6 @@ export default async function AuthorDetails({
                         {projectFiles.map((file) => {
                           const fileName =
                             file.file_name ??
-                            file.filename ??
-                            file.name ??
                             'Project document';
 
                           return (
@@ -321,6 +323,10 @@ export default async function AuthorDetails({
                                     {formatDate(file.created_at)}
                                   </p>
                                 )}
+
+                                <p className="text-sm text-slate-500 mt-1">
+                                  Version {file.version_number ?? 1}
+                                </p>
                               </div>
 
                               <span className="text-sm text-slate-500">
@@ -330,6 +336,18 @@ export default async function AuthorDetails({
                           );
                         })}
                       </div>
+                    )}
+
+                    {!filesError && (
+                      <AdminRevisionUpload
+                        projectId={project.id}
+                        existingFiles={projectFiles.map((file) => ({
+                          id: file.id,
+                          file_name: file.file_name,
+                          version_number:
+                            file.version_number ?? 1,
+                        }))}
+                      />
                     )}
                   </div>
                 </article>
