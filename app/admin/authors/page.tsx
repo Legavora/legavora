@@ -9,7 +9,7 @@ type SearchParams = {
   q?: string | string[];
 };
 
-export default async function AuthorsPage({
+export default async function AuthorsManagement({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
@@ -31,69 +31,66 @@ export default async function AuthorsPage({
     redirect('/dashboard');
   }
 
-  const [
-    { data: authors, error: authorsError },
-    { data: projects, error: projectsError },
-  ] = await Promise.all([
-    db
-      .from('profiles')
-      .select('id,full_name,role,created_at')
-      .eq('role', 'author')
-      .order('full_name', { ascending: true }),
-
-    db
-      .from('projects')
-      .select('id,author_id,title,status,stage')
-      .order('created_at', { ascending: false }),
-  ]);
-
   const params = await searchParams;
-  const rawQuery = params.q;
+
   const query = (
-    Array.isArray(rawQuery)
-      ? rawQuery[0] ?? ''
-      : rawQuery ?? ''
+    typeof params.q === 'string' ? params.q : ''
   ).trim().toLowerCase();
 
-  const authorRecords = (authors ?? []).map((author) => {
-    const authorProjects = (projects ?? []).filter(
+  const { data: authors, error: authorsError } =
+    await db
+      .from('profiles')
+      .select(
+        'id,full_name,role,created_at,author_number'
+      )
+      .eq('role', 'author')
+      .order('created_at', { ascending: true });
+
+  const { data: projects, error: projectsError } =
+    await db
+      .from('projects')
+      .select(
+        'id,author_id,title,status,stage'
+      )
+      .order('created_at', { ascending: false });
+
+  const authorList = authors ?? [];
+  const projectList = projects ?? [];
+
+  const filteredAuthors = authorList.filter((author) => {
+    const authorProjects = projectList.filter(
       (project) => project.author_id === author.id
     );
 
-    return {
-      ...author,
-      projects: authorProjects,
-    };
-  });
+    const authorId =
+      author.author_number != null
+        ? `LG-${author.author_number}`
+        : '';
 
-  const filteredAuthors = authorRecords.filter((author) => {
-    if (!query) return true;
-
-    const nameMatch = (author.full_name ?? '')
-      .toLowerCase()
-      .includes(query);
-
-    const idMatch = author.id
-      .toLowerCase()
-      .includes(query);
-
-    const bookMatch = author.projects.some(
-      (project) =>
+    return (
+      !query ||
+      (author.full_name ?? '')
+        .toLowerCase()
+        .includes(query) ||
+      authorId.toLowerCase().includes(query) ||
+      authorProjects.some((project) =>
         (project.title ?? '')
           .toLowerCase()
           .includes(query)
+      )
     );
-
-    return nameMatch || idMatch || bookMatch;
   });
 
   return (
     <main className="max-w-7xl mx-auto px-5 py-16">
-      <Link href="/admin" className="text-sm underline">
+      <Link
+        href="/admin"
+        className="text-sm underline"
+      >
         Back to Administration
       </Link>
 
-      <p className="eyebrow mt-8">
+      <p className="eyebrow mt-10">
         LEGAVORA OPERATIONS
       </p>
 
@@ -102,130 +99,157 @@ export default async function AuthorsPage({
       </h1>
 
       <p className="text-slate-600 mt-3">
-        Manage registered authors and view their
-        publishing projects.
+        Search registered authors by name,
+        publishing project or Legavora Author ID.
       </p>
 
       <form
         action="/admin/authors"
         method="GET"
-        className="flex flex-wrap gap-3 mt-8"
-        role="search"
+        className="flex flex-col sm:flex-row gap-3 mt-8"
       >
         <input
           type="search"
           name="q"
-          aria-label="Search authors"
-          placeholder="Search name, book title or account ID"
           defaultValue={query}
-          className="border rounded-lg px-4 py-3 flex-1 min-w-60 bg-white"
+          placeholder="Search name, book title or LG-100001"
+          aria-label="Search authors"
+          className="flex-1 min-w-0"
         />
 
-        <button type="submit" className="btn">
+        <button
+          type="submit"
+          className="btn"
+        >
           Search
         </button>
 
         {query && (
           <Link
             href="/admin/authors"
-            className="border rounded-lg px-5 py-3"
+            className="inline-flex items-center justify-center px-5 py-3 border rounded-lg"
           >
             Clear
           </Link>
         )}
       </form>
 
-      <div className="mt-8">
-        <p className="text-sm text-slate-600">
-          {filteredAuthors.length} author account(s) found
-        </p>
-      </div>
-
       {authorsError || projectsError ? (
-        <div className="panel mt-6">
+        <div className="panel mt-8">
           <p className="text-red-700">
-            Unable to load complete author information.
-            Please check database permissions.
+            Unable to load author records or publishing
+            projects. Please check the database connection
+            and access permissions.
           </p>
         </div>
-      ) : filteredAuthors.length === 0 ? (
-        <div className="panel mt-6">
-          <p>No matching authors found.</p>
-        </div>
       ) : (
-        <div className="grid gap-5 mt-6">
-          {filteredAuthors.map((author) => (
-            <article className="panel" key={author.id}>
-              <div className="flex flex-wrap justify-between gap-4">
-                <div>
-                  <h2 className="font-serif text-2xl">
-                    {author.full_name || 'Unnamed Author'}
-                  </h2>
+        <>
+          <p className="text-slate-600 mt-8">
+            {filteredAuthors.length} author account(s) found
+          </p>
 
-                  <p className="text-sm text-slate-600 mt-2">
-                    Account ID: {author.id}
-                  </p>
+          <div className="grid gap-5 mt-5">
+            {filteredAuthors.map((author) => {
+              const authorProjects = projectList.filter(
+                (project) =>
+                  project.author_id === author.id
+              );
 
-                  <p className="text-sm text-slate-600 mt-2">
-                    Registered:{' '}
-                    {author.created_at
-                      ? new Date(
+              const authorId =
+                author.author_number != null
+                  ? `LG-${author.author_number}`
+                  : 'Not assigned';
+
+              return (
+                <article
+                  className="panel"
+                  key={author.id}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h2 className="font-serif text-2xl">
+                        {author.full_name ||
+                          'Unnamed Author'}
+                      </h2>
+
+                      <p className="text-slate-600 mt-2">
+                        Author ID:{' '}
+                        <strong className="text-slate-900">
+                          {authorId}
+                        </strong>
+                      </p>
+
+                      <p className="text-sm text-slate-500 mt-2">
+                        Registered:{' '}
+                        {new Date(
                           author.created_at
-                        ).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          timeZone: 'UTC',
-                        })
-                      : 'Not available'}
-                  </p>
-                </div>
+                        ).toLocaleDateString(
+                          'en-GB',
+                          {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          }
+                        )}
+                      </p>
+                    </div>
 
-                <div>
-                  <span className="text-sm border rounded-full px-4 py-2">
-                    {author.role}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t pt-5">
-                <h3 className="font-semibold text-lg">
-                  Publishing Projects
-                  {' '}({author.projects.length})
-                </h3>
-
-                {author.projects.length === 0 ? (
-                  <p className="text-slate-600 mt-3">
-                    No publishing projects yet.
-                  </p>
-                ) : (
-                  <div className="grid gap-3 mt-4">
-                    {author.projects.map((project) => (
-                      <div
-                        key={project.id}
-                        className="border rounded-lg p-4"
-                      >
-                        <h4 className="font-serif text-xl">
-                          {project.title}
-                        </h4>
-
-                        <p className="text-sm text-slate-600 mt-2">
-                          Status:{' '}
-                          {project.status.replaceAll('_', ' ')}
-                        </p>
-
-                        <p className="text-sm text-slate-600 mt-1">
-                          Stage:{' '}
-                          {project.stage.replaceAll('_', ' ')}
-                        </p>
-                      </div>
-                    ))}
+                    <span className="rounded-full border px-4 py-2 text-sm">
+                      Author
+                    </span>
                   </div>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
+
+                  <div className="border-t mt-7 pt-6">
+                    <h3 className="font-semibold text-lg">
+                      Publishing Projects (
+                      {authorProjects.length})
+                    </h3>
+
+                    {authorProjects.length === 0 ? (
+                      <p className="text-slate-600 mt-3">
+                        No publishing projects yet.
+                      </p>
+                    ) : (
+                      <div className="grid gap-3 mt-4">
+                        {authorProjects.map(
+                          (project) => (
+                            <div
+                              key={project.id}
+                              className="rounded-lg border p-4"
+                            >
+                              <h4 className="font-serif text-xl">
+                                {project.title}
+                              </h4>
+
+                              <p className="text-sm text-slate-600 mt-2">
+                                Status:{' '}
+                                {project.status}
+                              </p>
+
+                              <p className="text-sm text-slate-600 mt-1">
+                                Stage:{' '}
+                                {project.stage}
+                              </p>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {filteredAuthors.length === 0 && (
+            <div className="panel mt-5">
+              <p className="text-slate-600">
+                No authors match your search.
+              </p>
+            </div>
+          )}
+        </>
       )}
     </main>
   );
