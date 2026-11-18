@@ -20,9 +20,7 @@ function formatDate(value: string) {
 }
 
 function formatLabel(value: string) {
-  return value
-    .replaceAll('_', ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value.replaceAll('_', ' ');
 }
 
 export default async function AuthorDetails({
@@ -60,44 +58,48 @@ export default async function AuthorDetails({
 
   if (!author) notFound();
 
-  const { data: projects, error: projectsError } = await db
-    .from('projects')
-    .select(
-      'id,title,status,stage,genre,description,created_at'
-    )
-    .eq('author_id', author.id)
-    .order('created_at', { ascending: false });
+  const { data: projects, error: projectsError } =
+    await db
+      .from('projects')
+      .select(
+        'id,title,status,stage,genre,description,created_at'
+      )
+      .eq('author_id', author.id)
+      .order('created_at', { ascending: false });
 
-  const authorId =
-    author.author_number != null
-      ? `LG-${author.author_number}`
-      : 'Not assigned';
+  if (projectsError) {
+    throw new Error('Unable to load publishing projects.');
+  }
 
-  const projectCount = projectsError
-    ? 'Unavailable'
-    : projects?.length ?? 0;
+  const projectList = projects ?? [];
+  const projectIds = projectList.map((project) => project.id);
 
-  const activeProjects = (projects ?? []).filter(
-    (project) =>
-      ['in_review', 'in_progress'].includes(project.status)
+  const { data: files, error: filesError } =
+    projectIds.length
+      ? await db
+          .from('project_files')
+          .select('*')
+          .in('project_id', projectIds)
+      : { data: [], error: null };
+
+  const authorId = author.author_number
+    ? `LG-${author.author_number}`
+    : 'Not assigned';
+
+  const activeProjects = projectList.filter((project) =>
+    ['in_review', 'in_progress'].includes(project.status)
   ).length;
 
   return (
     <main className="max-w-7xl mx-auto px-5 py-16">
-      <div className="flex flex-wrap gap-5">
-        <Link
-          href="/admin/authors"
-          className="text-sm underline"
-        >
-          Back to Authors Management
-        </Link>
+      <Link
+        href="/admin/authors"
+        className="text-sm underline"
+      >
+        Back to Authors Management
+      </Link>
 
-        <Link href="/admin" className="text-sm underline">
-          Administration Dashboard
-        </Link>
-      </div>
-
-      <header className="mt-10">
+      <div className="mt-10">
         <p className="eyebrow">LEGAVORA OPERATIONS</p>
 
         <h1 className="heading text-4xl mt-3">
@@ -109,19 +111,18 @@ export default async function AuthorDetails({
           and project management.
         </p>
 
-        <p className="text-sm text-slate-600 mt-3">
-          Legavora Author ID:{' '}
-          <strong>{authorId}</strong>
+        <p className="text-slate-600 mt-3">
+          Legavora Author ID: <strong>{authorId}</strong>
         </p>
-      </header>
+      </div>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-10">
         <div className="panel">
           <p className="text-sm text-slate-600">
             Total Publishing Projects
           </p>
           <p className="text-3xl font-semibold mt-3">
-            {projectCount}
+            {projectList.length}
           </p>
         </div>
 
@@ -130,10 +131,10 @@ export default async function AuthorDetails({
             Active Projects
           </p>
           <p className="text-3xl font-semibold mt-3">
-            {projectsError ? 'Unavailable' : activeProjects}
+            {activeProjects}
           </p>
         </div>
-      </section>
+      </div>
 
       <section className="panel mt-10">
         <h2 className="heading text-2xl">
@@ -142,9 +143,7 @@ export default async function AuthorDetails({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <div>
-            <p className="text-sm text-slate-500">
-              Full Name
-            </p>
+            <p className="text-sm text-slate-500">Full Name</p>
             <p className="font-semibold mt-1">
               {author.full_name || 'Not provided'}
             </p>
@@ -181,21 +180,10 @@ export default async function AuthorDetails({
 
       <section className="mt-12">
         <h2 className="heading text-3xl">
-          Publishing Projects
+          Publishing Projects ({projectList.length})
         </h2>
 
-        <p className="text-slate-600 mt-3">
-          Review the author's submitted books and manage
-          their publishing progress.
-        </p>
-
-        {projectsError ? (
-          <div className="panel mt-6">
-            <p className="text-red-700">
-              Unable to load publishing projects.
-            </p>
-          </div>
-        ) : !projects?.length ? (
+        {projectList.length === 0 ? (
           <div className="panel mt-6">
             <p className="text-slate-600">
               This author has not submitted any publishing
@@ -204,94 +192,149 @@ export default async function AuthorDetails({
           </div>
         ) : (
           <div className="grid gap-5 mt-6">
-            {projects.map((project) => (
-              <article className="panel" key={project.id}>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-serif text-2xl">
-                      {project.title}
-                    </h3>
+            {projectList.map((project) => {
+              const projectFiles = (files ?? []).filter(
+                (file) => file.project_id === project.id
+              );
 
-                    <p className="text-sm text-slate-500 mt-2">
-                      Submitted {formatDate(project.created_at)}
-                    </p>
-                  </div>
+              return (
+                <article className="panel" key={project.id}>
+                  <div className="flex flex-wrap justify-between gap-4">
+                    <div>
+                      <h3 className="font-serif text-2xl">
+                        {project.title}
+                      </h3>
 
-                  <span className="rounded-full border px-4 py-2 text-sm">
-                    {formatLabel(project.status)}
-                  </span>
-                </div>
+                      <p className="text-sm text-slate-500 mt-2">
+                        Submitted {formatDate(project.created_at)}
+                      </p>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-7">
-                  <div>
-                    <p className="text-sm text-slate-500">
-                      Project Status
-                    </p>
-                    <p className="font-medium mt-1">
+                    <span className="rounded-full border px-4 py-2 text-sm">
                       {formatLabel(project.status)}
-                    </p>
+                    </span>
                   </div>
 
-                  <div>
-                    <p className="text-sm text-slate-500">
-                      Publishing Stage
-                    </p>
-                    <p className="font-medium mt-1">
-                      {formatLabel(project.stage)}
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
+                    <div>
+                      <p className="text-sm text-slate-500">
+                        Project Status
+                      </p>
+                      <p className="font-medium mt-1">
+                        {formatLabel(project.status)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-slate-500">
+                        Publishing Stage
+                      </p>
+                      <p className="font-medium mt-1">
+                        {formatLabel(project.stage)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-slate-500">
+                        Genre
+                      </p>
+                      <p className="font-medium mt-1">
+                        {project.genre || 'Not specified'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-slate-500">
+                        Submission Date
+                      </p>
+                      <p className="font-medium mt-1">
+                        {formatDate(project.created_at)}
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <p className="text-sm text-slate-500">
-                      Genre
-                    </p>
-                    <p className="font-medium mt-1">
-                      {project.genre || 'Not specified'}
-                    </p>
-                  </div>
+                  {project.description && (
+                    <div className="mt-7">
+                      <p className="text-sm text-slate-500">
+                        Project Description
+                      </p>
+                      <p className="text-slate-700 mt-2 whitespace-pre-wrap">
+                        {project.description}
+                      </p>
+                    </div>
+                  )}
 
-                  <div>
-                    <p className="text-sm text-slate-500">
-                      Submission Date
-                    </p>
-                    <p className="font-medium mt-1">
-                      {formatDate(project.created_at)}
-                    </p>
-                  </div>
-                </div>
+                  <div className="border-t mt-8 pt-7">
+                    <h4 className="font-semibold text-xl">
+                      Project Management
+                    </h4>
 
-                {project.description && (
-                  <div className="mt-7">
-                    <p className="text-sm text-slate-500">
-                      Project Description
+                    <p className="text-slate-600 mt-2 mb-5">
+                      Change the publishing stage or project
+                      status, then select Update to save.
                     </p>
 
-                    <p className="text-slate-700 mt-2 whitespace-pre-wrap">
-                      {project.description}
-                    </p>
-                  </div>
-                )}
-
-                <div className="border-t mt-8 pt-7">
-                  <h4 className="font-semibold text-lg">
-                    Project Management
-                  </h4>
-
-                  <p className="text-sm text-slate-600 mt-2">
-                    Change the publishing stage or project
-                    status, then select Update to save.
-                  </p>
-
-                  <div className="mt-4">
                     <AdminTools
                       projectId={project.id}
                       currentStage={project.stage}
                       currentStatus={project.status}
                     />
                   </div>
-                </div>
-              </article>
-            ))}
+
+                  <div className="border-t mt-8 pt-7">
+                    <h4 className="font-semibold text-xl">
+                      Manuscripts & Project Files
+                      ({projectFiles.length})
+                    </h4>
+
+                    {filesError ? (
+                      <p className="text-red-700 mt-4">
+                        Unable to load project files.
+                        Check file access permissions.
+                      </p>
+                    ) : projectFiles.length === 0 ? (
+                      <p className="text-slate-600 mt-4">
+                        No uploaded files found for this project.
+                      </p>
+                    ) : (
+                      <div className="grid gap-3 mt-5">
+                        {projectFiles.map((file) => {
+                          const fileName =
+                            file.file_name ??
+                            file.filename ??
+                            file.name ??
+                            'Project document';
+
+                          return (
+                            <div
+                              key={file.id}
+                              className="rounded-lg border p-4 flex flex-wrap items-center justify-between gap-4"
+                            >
+                              <div>
+                                <p className="font-medium break-all">
+                                  {fileName}
+                                </p>
+
+                                {file.created_at && (
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    Uploaded{' '}
+                                    {formatDate(file.created_at)}
+                                  </p>
+                                )}
+                              </div>
+
+                              <span className="text-sm text-slate-500">
+                                Secure download configuration pending
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
