@@ -3,23 +3,31 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase';
 import { z } from 'zod';
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
 const schema = z.object({
   project_id: z.string().uuid(),
   previous_file_id: z.string().uuid(),
   storage_path: z.string().min(1),
   file_name: z.string().min(1).max(255),
-  size_bytes: z.number().int().positive().max(50 * 1024 * 1024),
+  size_bytes: z.number().int().positive().max(MAX_FILE_SIZE),
   revision_notes: z.string().trim().min(1).max(5000),
 });
 
 const allowedExtensions = new Set([
-  'pdf', 'docx', 'epub', 'jpg', 'jpeg', 'png',
+  'pdf',
+  'docx',
+  'epub',
+  'jpg',
+  'jpeg',
+  'png',
 ]);
 
 export async function POST(request: Request) {
   try {
     const { db, user } = await requireUser();
 
+    // Verify administrator permissions.
     const { data: profile, error: profileError } = await db
       .from('profiles')
       .select('role')
@@ -60,12 +68,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate the administrator's storage directory.
     const expectedPrefix = `${user.id}/${input.project_id}/`;
+
+    const storageFileName = input.storage_path.slice(
+      expectedPrefix.length
+    );
+
+    const expectedStorageName = new RegExp(
+      `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.${extension}$`,
+      'i'
+    );
 
     if (
       !input.storage_path.startsWith(expectedPrefix) ||
-      !input.storage_path.endsWith(`.${extension}`) ||
-      input.storage_path.slice(expectedPrefix.length).includes('/')
+      !expectedStorageName.test(storageFileName)
     ) {
       return NextResponse.json(
         { error: 'Invalid storage location.' },
@@ -73,6 +90,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Confirm the publishing project exists.
     const { data: project, error: projectError } = await db
       .from('projects')
       .select('id')
@@ -86,6 +104,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Confirm the original file belongs to this project.
     const { data: previous, error: previousError } = await db
       .from('project_files')
       .select('id, project_id, version_number')
@@ -100,24 +119,42 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify the uploaded object through Storage.
+    // Do not register a revision if the file is missing.
     const { data: storageFile, error: storageError } =
       await db.storage
         .from('manuscripts')
         .info(input.storage_path);
 
-    if (
-      storageError ||
-      !storageFile ||
-      Number(storageFile.metadata?.size) !== input.size_bytes
-    ) {
+    if (storageError || !storageFile) {
       return NextResponse.json(
-        { error: 'Uploaded file could not be verified.' },
+        {
+          error:
+            'Storage verification failed: ' +
+            (storageError?.message || 'File not found.'),
+        },
         { status: 400 }
       );
     }
 
-    const nextVersion = (previous.version_number ?? 1) + 1;
+    // Check the file size when Storage provides it.
+    const actualSize = storageFile.metadata?.size;
 
+    if (
+      actualSize != null &&
+      Number(actualSize) !== input.size_bytes
+    ) {
+      return NextResponse.json(
+        { error: 'Uploaded file size does not match.' },
+        { status: 400 }
+      );
+    }
+
+    // Calculate the next revision number.
+    const nextVersion =
+      (previous.version_number ?? 1) + 1;
+
+    // Save the revision without deleting the original.
     const { data: revision, error: insertError } = await db
       .from('project_files')
       .insert({
@@ -136,7 +173,11 @@ export async function POST(request: Request) {
 
     if (insertError || !revision) {
       return NextResponse.json(
-        { error: insertError?.message || 'Unable to record revision.' },
+        {
+          error:
+            insertError?.message ||
+            'Unable to record revised file.',
+        },
         { status: 400 }
       );
     }
@@ -145,6 +186,7 @@ export async function POST(request: Request) {
       ok: true,
       file_id: revision.id,
       version_number: revision.version_number,
+      message: 'Revised file registered successfully.',
     });
   } catch (error) {
     return NextResponse.json(
