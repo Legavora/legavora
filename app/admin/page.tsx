@@ -62,9 +62,7 @@ export default async function Admin() {
   ] = await Promise.all([
     db
       .from('projects')
-      .select(
-        'id,title,status,stage,author_id,created_at'
-      )
+      .select('id,title,status,stage,author_id,created_at')
       .order('created_at', { ascending: false })
       .limit(100),
 
@@ -178,6 +176,7 @@ export default async function Admin() {
         approvals, and distribution operations.
       </p>
 
+      {/* ADMINISTRATOR NAVIGATION */}
       <nav className="flex flex-wrap gap-4 mt-8">
         <Link href="/admin/authors" className="btn">
           Manage Authors
@@ -228,7 +227,12 @@ export default async function Admin() {
             {projects.map((project) => (
               <div className="panel" key={project.id}>
                 <h3 className="font-serif text-xl">
-                  {project.title}
+                  <Link
+                    href={`/admin/projects/${project.id}`}
+                    className="hover:underline"
+                  >
+                    {project.title}
+                  </Link>
                 </h3>
 
                 <p className="text-sm text-slate-600 mt-2">
@@ -242,6 +246,15 @@ export default async function Admin() {
                   currentStage={project.stage}
                   currentStatus={project.status}
                 />
+
+                <div className="mt-5">
+                  <Link
+                    href={`/admin/projects/${project.id}`}
+                    className="text-sm font-semibold underline text-[#a67c36]"
+                  >
+                    View Project Details
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
