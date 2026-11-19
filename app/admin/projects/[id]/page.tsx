@@ -1,0 +1,154 @@
+
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { currentUser } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
+
+type Props = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function AdminProjectDetails({ params }: Props) {
+  const { id } = await params;
+  const { db, user } = await currentUser();
+
+  if (!user) redirect('/login');
+
+  const { data: profile, error: profileError } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error('Unable to verify administrator access');
+  }
+
+  if (!['admin', 'manager'].includes(profile.role)) {
+    redirect('/dashboard');
+  }
+
+  const { data: project, error: projectError } = await db
+    .from('projects')
+    .select('id,title,status,stage,author_id,created_at')
+    .eq('id', id)
+    .single();
+
+  if (projectError || !project) notFound();
+
+  const { data: author } = await db
+    .from('profiles')
+    .select('full_name,author_number')
+    .eq('id', project.author_id)
+    .single();
+
+  const { data: files, error: filesError } = await db
+    .from('project_files')
+    .select('*')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
+
+  const { data: invoices, error: invoicesError } = await db
+    .from('invoices')
+    .select('id,description,amount_cents,currency,status')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
+
+  if (filesError || invoicesError) {
+    throw new Error('Unable to load project records');
+  }
+
+  const format = (value: string) =>
+    value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  return (
+    <main className="container py-12 space-y-8">
+      <Link href="/admin" className="text-sm underline">
+        Back to Administrator Dashboard
+      </Link>
+
+      <header className="space-y-3">
+        <p className="uppercase tracking-widest text-sm">
+          Legavora Publishing Operations
+        </p>
+        <h1>{project.title}</h1>
+        <p>Administrator Project Management</p>
+      </header>
+
+      <section className="panel space-y-4">
+        <h2>Project Overview</h2>
+        <p>
+          <strong>Author:</strong>{' '}
+          {author?.full_name || 'Registered Author'}
+        </p>
+        <p>
+          <strong>Author Number:</strong>{' '}
+          {author?.author_number
+            ? `#${author.author_number}`
+            : 'Not assigned'}
+        </p>
+        <p>
+          <strong>Status:</strong> {format(project.status)}
+        </p>
+        <p>
+          <strong>Publishing Stage:</strong> {format(project.stage)}
+        </p>
+        <p>
+          <strong>Created:</strong>{' '}
+          {new Date(project.created_at).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC'
+          })}
+        </p>
+      </section>
+
+      <section className="panel space-y-4">
+        <h2>Project Files</h2>
+        {files?.length ? (
+          <div className="space-y-3">
+            {files.map(file => (
+              <div key={file.id} className="border-b py-3">
+                <p className="font-semibold">
+                  {file.file_name || file.filename || 'Project file'}
+                </p>
+                <p className="text-sm">
+                  Uploaded:{' '}
+                  {new Date(file.created_at).toLocaleDateString('en-GB')}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No project files have been uploaded yet.</p>
+        )}
+      </section>
+
+      <section className="panel space-y-4">
+        <h2>Project Invoices</h2>
+        {invoices?.length ? (
+          <div className="space-y-3">
+            {invoices.map(invoice => (
+              <div key={invoice.id} className="border-b py-3">
+                <p className="font-semibold">
+                  {invoice.description || 'Publishing Service'}
+                </p>
+                <p>
+                  {invoice.currency}{' '}
+                  {(invoice.amount_cents / 100).toFixed(2)}
+                </p>
+                <p className="text-sm">
+                  Status: {format(invoice.status)}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No invoices are associated with this project.</p>
+        )}
+      </section>
+    </main>
+  );
+}
