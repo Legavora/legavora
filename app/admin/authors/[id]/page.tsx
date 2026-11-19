@@ -32,6 +32,7 @@ export default async function AuthorDetails({
 
   if (!user) redirect('/login');
 
+  // Verify administrator permissions.
   const { data: staff, error: staffError } = await db
     .from('profiles')
     .select('role')
@@ -46,6 +47,7 @@ export default async function AuthorDetails({
     redirect('/dashboard');
   }
 
+  // Retrieve the selected author.
   const { data: author, error: authorError } = await db
     .from('profiles')
     .select('id,full_name,author_number,role,created_at')
@@ -59,6 +61,7 @@ export default async function AuthorDetails({
 
   if (!author) notFound();
 
+  // Retrieve the author's publishing projects.
   const { data: projects, error: projectsError } = await db
     .from('projects')
     .select(
@@ -74,6 +77,7 @@ export default async function AuthorDetails({
   const projectList = projects ?? [];
   const projectIds = projectList.map((project) => project.id);
 
+  // Retrieve manuscripts and revision history.
   const { data: files, error: filesError } =
     projectIds.length > 0
       ? await db
@@ -101,6 +105,7 @@ export default async function AuthorDetails({
         Back to Authors Management
       </Link>
 
+      {/* Author heading */}
       <div className="mt-10">
         <p className="eyebrow">LEGAVORA OPERATIONS</p>
 
@@ -118,6 +123,7 @@ export default async function AuthorDetails({
         </p>
       </div>
 
+      {/* Author statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-10">
         <div className="panel">
           <p className="text-sm text-slate-600">
@@ -138,6 +144,7 @@ export default async function AuthorDetails({
         </div>
       </div>
 
+      {/* Author information */}
       <section className="panel mt-10">
         <h2 className="heading text-2xl">
           Author Information
@@ -182,6 +189,7 @@ export default async function AuthorDetails({
         </div>
       </section>
 
+      {/* Publishing projects */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Publishing Projects ({projectList.length})
@@ -203,6 +211,7 @@ export default async function AuthorDetails({
 
               return (
                 <article className="panel" key={project.id}>
+                  {/* Project heading */}
                   <div className="flex flex-wrap justify-between gap-4">
                     <div>
                       <h3 className="font-serif text-2xl">
@@ -210,7 +219,8 @@ export default async function AuthorDetails({
                       </h3>
 
                       <p className="text-sm text-slate-500 mt-2">
-                        Submitted {formatDate(project.created_at)}
+                        Submitted{' '}
+                        {formatDate(project.created_at)}
                       </p>
                     </div>
 
@@ -219,6 +229,7 @@ export default async function AuthorDetails({
                     </span>
                   </div>
 
+                  {/* Project details */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
                     <div>
                       <p className="text-sm text-slate-500">
@@ -257,6 +268,7 @@ export default async function AuthorDetails({
                     </div>
                   </div>
 
+                  {/* Project description */}
                   {project.description && (
                     <div className="mt-7">
                       <p className="text-sm text-slate-500">
@@ -268,6 +280,7 @@ export default async function AuthorDetails({
                     </div>
                   )}
 
+                  {/* Project management */}
                   <div className="border-t mt-8 pt-7">
                     <h4 className="font-semibold text-xl">
                       Project Management
@@ -285,10 +298,11 @@ export default async function AuthorDetails({
                     />
                   </div>
 
+                  {/* Manuscript management */}
                   <div className="border-t mt-8 pt-7">
                     <h4 className="font-semibold text-xl">
-                      Manuscripts &amp; Project Files
-                      {' '}({projectFiles.length})
+                      Manuscripts &amp; Project Files (
+                      {projectFiles.length})
                     </h4>
 
                     {filesError ? (
@@ -325,28 +339,43 @@ export default async function AuthorDetails({
                                 )}
 
                                 <p className="text-sm text-slate-500 mt-1">
-                                  Version {file.version_number ?? 1}
+                                  Version{' '}
+                                  {file.version_number ?? 1}
                                 </p>
+
+                                {file.revision_notes && (
+                                  <p className="text-sm text-slate-600 mt-2">
+                                    Revision notes:{' '}
+                                    {file.revision_notes}
+                                  </p>
+                                )}
                               </div>
 
-                              <span className="text-sm text-slate-500">
-                                Secure download configuration pending
-                              </span>
+                              {/* Administrator-only download */}
+                              <a
+                                href={`/api/files/download?id=${encodeURIComponent(file.id)}`}
+                                className="text-sm font-semibold text-[#a67c36] underline shrink-0"
+                              >
+                                Download File
+                              </a>
                             </div>
                           );
                         })}
                       </div>
                     )}
 
+                    {/* Administrator revision upload */}
                     {!filesError && (
                       <AdminRevisionUpload
                         projectId={project.id}
-                        existingFiles={projectFiles.map((file) => ({
-                          id: file.id,
-                          file_name: file.file_name,
-                          version_number:
-                            file.version_number ?? 1,
-                        }))}
+                        existingFiles={projectFiles.map(
+                          (file) => ({
+                            id: file.id,
+                            file_name: file.file_name,
+                            version_number:
+                              file.version_number ?? 1,
+                          })
+                        )}
                       />
                     )}
                   </div>
