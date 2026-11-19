@@ -9,11 +9,15 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-export default async function AdminProjectDetails({ params }: Props) {
+export default async function AdminProjectDetails({
+  params,
+}: Props) {
   const { id } = await params;
   const { db, user } = await currentUser();
 
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
 
   const { data: profile, error: profileError } = await db
     .from('profiles')
@@ -35,7 +39,9 @@ export default async function AdminProjectDetails({ params }: Props) {
     .eq('id', id)
     .single();
 
-  if (projectError || !project) notFound();
+  if (projectError || !project) {
+    notFound();
+  }
 
   const { data: author } = await db
     .from('profiles')
@@ -60,11 +66,16 @@ export default async function AdminProjectDetails({ params }: Props) {
   }
 
   const format = (value: string) =>
-    value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    value
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
   return (
     <main className="container py-12 space-y-8">
-      <Link href="/admin" className="text-sm underline">
+      <Link
+        href="/admin"
+        className="text-sm underline"
+      >
         Back to Administrator Dashboard
       </Link>
 
@@ -72,73 +83,142 @@ export default async function AdminProjectDetails({ params }: Props) {
         <p className="uppercase tracking-widest text-sm">
           Legavora Publishing Operations
         </p>
+
         <h1>{project.title}</h1>
+
         <p>Administrator Project Management</p>
       </header>
 
+      {/* PROJECT OVERVIEW */}
       <section className="panel space-y-4">
         <h2>Project Overview</h2>
+
         <p>
           <strong>Author:</strong>{' '}
           {author?.full_name || 'Registered Author'}
         </p>
+
         <p>
           <strong>Author Number:</strong>{' '}
           {author?.author_number
             ? `#${author.author_number}`
             : 'Not assigned'}
         </p>
+
         <p>
-          <strong>Status:</strong> {format(project.status)}
+          <strong>Status:</strong>{' '}
+          {format(project.status)}
         </p>
+
         <p>
-          <strong>Publishing Stage:</strong> {format(project.stage)}
+          <strong>Publishing Stage:</strong>{' '}
+          {format(project.stage)}
         </p>
+
         <p>
           <strong>Created:</strong>{' '}
-          {new Date(project.created_at).toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            timeZone: 'UTC'
-          })}
+          {new Date(project.created_at).toLocaleDateString(
+            'en-GB',
+            {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              timeZone: 'UTC',
+            }
+          )}
         </p>
       </section>
 
+      {/* PROJECT FILES */}
       <section className="panel space-y-4">
         <h2>Project Files</h2>
+
+        <p className="text-sm text-slate-600">
+          Review and download files submitted for this
+          publishing project. Access is restricted to
+          authorized Legavora staff.
+        </p>
+
         {files?.length ? (
-          <div className="space-y-3">
-            {files.map(file => (
-              <div key={file.id} className="border-b py-3">
-                <p className="font-semibold">
-                  {file.file_name || file.filename || 'Project file'}
-                </p>
-                <p className="text-sm">
-                  Uploaded:{' '}
-                  {new Date(file.created_at).toLocaleDateString('en-GB')}
-                </p>
-              </div>
-            ))}
+          <div className="space-y-4">
+            {files.map((file) => {
+              const fileName =
+                file.file_name ||
+                file.filename ||
+                'Project file';
+
+              const downloadUrl =
+                `/api/files/download?id=${encodeURIComponent(
+                  file.id
+                )}`;
+
+              return (
+                <div
+                  key={file.id}
+                  className="border-b py-4"
+                >
+                  <p className="font-semibold">
+                    {fileName}
+                  </p>
+
+                  <p className="text-sm text-slate-600 mt-1">
+                    Uploaded:{' '}
+                    {new Date(
+                      file.created_at
+                    ).toLocaleDateString('en-GB', {
+                      timeZone: 'UTC',
+                    })}
+                  </p>
+
+                  <div className="flex flex-wrap gap-4 mt-4">
+                    <a
+                      href={downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-semibold underline"
+                    >
+                      View File
+                    </a>
+
+                    <a
+                      href={downloadUrl}
+                      className="text-sm font-semibold underline"
+                    >
+                      Download File
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p>No project files have been uploaded yet.</p>
         )}
       </section>
 
+      {/* PROJECT INVOICES */}
       <section className="panel space-y-4">
         <h2>Project Invoices</h2>
+
         {invoices?.length ? (
           <div className="space-y-3">
-            {invoices.map(invoice => (
-              <div key={invoice.id} className="border-b py-3">
+            {invoices.map((invoice) => (
+              <div
+                key={invoice.id}
+                className="border-b py-3"
+              >
                 <p className="font-semibold">
-                  {invoice.description || 'Publishing Service'}
+                  {invoice.description ||
+                    'Publishing Service'}
                 </p>
+
                 <p>
                   {invoice.currency}{' '}
-                  {(invoice.amount_cents / 100).toFixed(2)}
+                  {(
+                    invoice.amount_cents / 100
+                  ).toFixed(2)}
                 </p>
+
                 <p className="text-sm">
                   Status: {format(invoice.status)}
                 </p>
@@ -146,7 +226,9 @@ export default async function AdminProjectDetails({ params }: Props) {
             ))}
           </div>
         ) : (
-          <p>No invoices are associated with this project.</p>
+          <p>
+            No invoices are associated with this project.
+          </p>
         )}
       </section>
     </main>
