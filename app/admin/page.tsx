@@ -3,36 +3,30 @@ import Link from 'next/link';
 import { currentUser } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import AdminTools from '@/components/AdminTools';
+import InvoiceManager from '@/components/InvoiceManager';
 
 export const dynamic = 'force-dynamic';
 
-type AuditDetails = {
+type ActivityDetails = {
   previous_stage?: string;
   new_stage?: string;
   previous_status?: string;
   new_status?: string;
 };
 
-function formatLabel(value: string | null | undefined) {
+function readable(value: string | null | undefined) {
   if (!value) return 'Not specified';
 
   return value
-    .replace(/_/g, ' ')
+    .replaceAll('_', ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Date unavailable';
-  }
-
-  return new Intl.DateTimeFormat('en-GB', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  }).format(date) + ' UTC';
+function money(amountCents: number, currency: string) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amountCents / 100);
 }
 
 export default async function Admin() {
@@ -42,13 +36,14 @@ export default async function Admin() {
     redirect('/login');
   }
 
-  const { data: profile } = await db
+  const { data: profile, error: profileError } = await db
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single();
 
   if (
+    profileError ||
     !profile ||
     !['admin', 'manager'].includes(profile.role)
   ) {
@@ -56,24 +51,46 @@ export default async function Admin() {
   }
 
   const [
-    { data: projects, error: projectsError },
-    { data: invoices, error: invoicesError },
-    { count: totalProjects, error: totalError },
-    { count: activeProjects, error: activeError },
-    { count: registeredAuthors, error: authorsError },
-    { count: awaitingAttention, error: attentionError },
-    { data: activities, error: activitiesError },
+    projectsResult,
+    invoicesResult,
+    authorsResult,
+    activityResult,
+    totalResult,
+    activeResult,
+    authorCountResult,
+    attentionResult,
   ] = await Promise.all([
     db
       .from('projects')
-      .select('id,title,status,stage,author_id,created_at')
+      .select(
+        'id,title,status,stage,author_id,created_at'
+      )
       .order('created_at', { ascending: false })
       .limit(100),
 
     db
       .from('invoices')
-      .select('id,description,status,amount_cents,currency')
-      .limit(100),
+      .select(
+        'id,author_id,project_id,description,status,amount_cents,currency,created_at'
+      )
+      .order('created_at', { ascending: false })
+      .limit(30),
+
+    db
+      .from('profiles')
+      .select('id,full_name,author_number')
+      .eq('role', 'author')
+      .order('created_at', { ascending: false })
+      .limit(500),
+
+    db
+      .from('audit_log')
+      .select(
+        'id,actor_id,action,resource_type,resource_id,details,created_at'
+      )
+      .eq('action', 'project_updated')
+      .order('created_at', { ascending: false })
+      .limit(30),
 
     db
       .from('projects')
@@ -93,98 +110,81 @@ export default async function Admin() {
       .from('projects')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'submitted'),
-
-    db
-      .from('audit_log')
-      .select(
-        'id,actor_id,action,resource_type,resource_id,details,created_at'
-      )
-      .eq('action', 'project_updated')
-      .eq('resource_type', 'project')
-      .order('created_at', { ascending: false })
-      .limit(30),
   ]);
 
-  const metrics = [
-    {
-      label: 'Total Projects',
-      value: totalError ? 'Unavailable' : totalProjects ?? 0,
-      description: 'All publishing projects',
-    },
-    {
-      label: 'Active Projects',
-      value: activeError ? 'Unavailable' : activeProjects ?? 0,
-      description: 'In review or in progress',
-    },
-    {
-      label: 'Registered Authors',
-      value: authorsError
-        ? 'Unavailable'
-        : registeredAuthors ?? 0,
-      description: 'Author accounts',
-    },
-    {
-      label: 'Awaiting Attention',
-      value: attentionError
-        ? 'Unavailable'
-        : awaitingAttention ?? 0,
-      description: 'Newly submitted projects',
-    },
-  ];
+  const projects = projectsResult.data ?? [];
+  const invoices = invoicesResult.data ?? [];
+  const authors = authorsResult.data ?? [];
+  const activities = activityResult.data ?? [];
 
   const projectNames = new Map(
-    (projects ?? []).map((project) => [
+    projects.map((project) => [
       project.id,
       project.title,
     ])
   );
 
-  const actorIds = Array.from(
-    new Set(
-      (activities ?? [])
-        .map((activity) => activity.actor_id)
-        .filter((id): id is string => Boolean(id))
-    )
-  );
-
-  const { data: staffProfiles } = actorIds.length
-    ? await db
-        .from('profiles')
-        .select('id,role')
-        .in('id', actorIds)
-    : { data: [] as { id: string; role: string }[] };
-
-  const staffRoles = new Map(
-    (staffProfiles ?? []).map((staff) => [
-      staff.id,
-      staff.role,
+  const authorNames = new Map(
+    authors.map((author) => [
+      author.id,
+      author.full_name ||
+        `Author #${author.author_number ?? 'Unknown'}`,
     ])
   );
 
+  const metrics = [
+    {
+      label: 'Total Projects',
+      value: totalResult.error
+        ? 'Unavailable'
+        : totalResult.count ?? 0,
+      description: 'All publishing projects',
+    },
+    {
+      label: 'Active Projects',
+      value: activeResult.error
+        ? 'Unavailable'
+        : activeResult.count ?? 0,
+      description: 'In review or in progress',
+    },
+    {
+      label: 'Registered Authors',
+      value: authorCountResult.error
+        ? 'Unavailable'
+        : authorCountResult.count ?? 0,
+      description: 'Author accounts',
+    },
+    {
+      label: 'Awaiting Attention',
+      value: attentionResult.error
+        ? 'Unavailable'
+        : attentionResult.count ?? 0,
+      description: 'Newly submitted projects',
+    },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-5 py-16">
-      <p className="eyebrow">LEGAVORA OPERATIONS</p>
+    <main className="max-w-7xl mx-auto px-5 py-16">
+      <p className="eyebrow">
+        LEGAVORA OPERATIONS
+      </p>
 
       <h1 className="heading text-4xl mt-3">
         Administration
       </h1>
 
       <p className="text-slate-600 mt-3">
-        Manage publishing projects, authors, invoices,
-        approvals and distribution operations.
+        Manage authors, publishing projects, invoices,
+        approvals, and distribution operations.
       </p>
 
-      {/* Administrator Navigation */}
-      <div className="flex flex-wrap gap-4 mt-8">
-        <Link
-          href="/admin/authors"
-          className="btn inline-flex items-center justify-center"
-        >
+      <nav className="flex flex-wrap gap-4 mt-8">
+        <Link href="/admin/authors" className="btn">
           Manage Authors
         </Link>
-      </div>
+      </nav>
 
-      {/* Operations Overview */}
+      {/* OPERATIONS OVERVIEW */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Operations Overview
@@ -209,17 +209,17 @@ export default async function Admin() {
         </div>
       </section>
 
-      {/* Publishing Projects */}
+      {/* PUBLISHING PROJECTS */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Publishing Projects
         </h2>
 
-        {projectsError ? (
+        {projectsResult.error ? (
           <p className="mt-5 text-red-700">
             Unable to load publishing projects.
           </p>
-        ) : !projects?.length ? (
+        ) : projects.length === 0 ? (
           <p className="mt-5 text-slate-600">
             No publishing projects found.
           </p>
@@ -232,8 +232,9 @@ export default async function Admin() {
                 </h3>
 
                 <p className="text-sm text-slate-600 mt-2">
-                  {formatLabel(project.status)} ·{' '}
-                  {formatLabel(project.stage)}
+                  {readable(project.status)}
+                  {' · '}
+                  {readable(project.stage)}
                 </p>
 
                 <AdminTools
@@ -247,190 +248,228 @@ export default async function Admin() {
         )}
       </section>
 
-      {/* Project Activity History */}
+      {/* INVOICE MANAGEMENT */}
       <section className="mt-12">
-        <div>
-          <p className="eyebrow">OPERATIONS RECORD</p>
+        <p className="eyebrow">
+          FINANCIAL OPERATIONS
+        </p>
 
-          <h2 className="heading text-3xl mt-2">
-            Project Activity History
-          </h2>
+        <h2 className="heading text-3xl mt-3">
+          Invoice Management
+        </h2>
 
-          <p className="text-slate-600 mt-3">
-            Recent changes to publishing stages and project
-            statuses, recorded automatically by Legavora.
-          </p>
-        </div>
+        <p className="text-slate-600 mt-3 mb-6">
+          Create and manage service invoices for
+          registered Legavora authors.
+        </p>
 
-        {activitiesError ? (
-          <div className="panel mt-5">
+        {authorsResult.error || projectsResult.error ? (
+          <div className="panel">
+            <p className="text-red-700">
+              Invoice creation is unavailable because
+              author or project records could not be loaded.
+            </p>
+          </div>
+        ) : (
+          <InvoiceManager
+            authors={authors}
+            projects={projects.map((project) => ({
+              id: project.id,
+              title: project.title,
+              author_id: project.author_id,
+            }))}
+          />
+        )}
+      </section>
+
+      {/* PROJECT ACTIVITY HISTORY */}
+      <section className="mt-12">
+        <p className="eyebrow">
+          OPERATIONS RECORD
+        </p>
+
+        <h2 className="heading text-3xl mt-3">
+          Project Activity History
+        </h2>
+
+        <p className="text-slate-600 mt-3">
+          Recent changes to publishing stages and project
+          statuses, recorded automatically by Legavora.
+        </p>
+
+        {activityResult.error ? (
+          <div className="panel mt-6">
             <p className="text-red-700">
               Activity history is currently unavailable.
             </p>
-            <p className="text-sm text-slate-600 mt-2">
-              Verify administrator access to the audit_log
-              table in Supabase.
-            </p>
           </div>
-        ) : !activities?.length ? (
-          <div className="panel mt-5">
-            <p className="font-semibold">
-              No project changes recorded yet.
-            </p>
-            <p className="text-sm text-slate-600 mt-2">
-              Changes to publishing stages and statuses will
-              appear here automatically.
+        ) : activities.length === 0 ? (
+          <div className="panel mt-6">
+            <p className="text-slate-600">
+              No project changes have been recorded yet.
             </p>
           </div>
         ) : (
           <div className="grid gap-4 mt-6">
             {activities.map((activity) => {
               const details =
-                activity.details &&
-                typeof activity.details === 'object' &&
-                !Array.isArray(activity.details)
-                  ? (activity.details as AuditDetails)
-                  : {};
-
-              const stageChanged =
-                details.previous_stage !== undefined ||
-                details.new_stage !== undefined;
-
-              const statusChanged =
-                details.previous_status !== undefined ||
-                details.new_status !== undefined;
-
-              const staffRole = activity.actor_id
-                ? staffRoles.get(activity.actor_id)
-                : undefined;
+                (activity.details ?? {}) as ActivityDetails;
 
               return (
                 <article
-                  key={activity.id}
                   className="panel"
+                  key={activity.id}
                 >
                   <div className="flex flex-wrap justify-between gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-widest text-[#a67c36] font-semibold">
-                        Project Updated
+                      <p className="eyebrow">
+                        PROJECT UPDATED
                       </p>
 
-                      <h3 className="font-serif text-xl mt-2">
+                      <h3 className="font-serif text-xl mt-3">
                         {projectNames.get(
                           activity.resource_id ?? ''
-                        ) ?? 'Publishing Project'}
+                        ) || 'Publishing Project'}
                       </h3>
                     </div>
 
-                    <time className="text-sm text-slate-500">
-                      {formatDate(activity.created_at)}
-                    </time>
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {statusChanged && (
-                      <div className="rounded-lg border border-slate-200 p-4">
-                        <p className="text-sm font-semibold">
-                          Project Status
-                        </p>
-
-                        <p className="text-sm text-slate-600 mt-2">
-                          {formatLabel(
-                            details.previous_status
-                          )}
-                          {' → '}
-                          <span className="font-semibold text-slate-900">
-                            {formatLabel(
-                              details.new_status
-                            )}
-                          </span>
-                        </p>
-                      </div>
-                    )}
-
-                    {stageChanged && (
-                      <div className="rounded-lg border border-slate-200 p-4">
-                        <p className="text-sm font-semibold">
-                          Publishing Stage
-                        </p>
-
-                        <p className="text-sm text-slate-600 mt-2">
-                          {formatLabel(
-                            details.previous_stage
-                          )}
-                          {' → '}
-                          <span className="font-semibold text-slate-900">
-                            {formatLabel(
-                              details.new_stage
-                            )}
-                          </span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-slate-200">
-                    <p className="text-sm text-slate-600">
-                      Changed by:{' '}
-                      <span className="font-semibold text-slate-900">
-                        {staffRole
-                          ? formatLabel(staffRole)
-                          : 'Staff account'}
-                      </span>
-                    </p>
-
-                    <p className="text-xs text-slate-500 mt-2 break-all">
-                      Actor ID:{' '}
-                      {activity.actor_id ??
-                        'Not available'}
+                    <p className="text-sm text-slate-500">
+                      {new Date(
+                        activity.created_at
+                      ).toLocaleString('en-GB', {
+                        timeZone: 'UTC',
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                      {' UTC'}
                     </p>
                   </div>
+
+                  {details.new_stage && (
+                    <div className="border rounded-lg p-4 mt-5">
+                      <p className="font-semibold">
+                        Publishing Stage
+                      </p>
+
+                      <p className="mt-2">
+                        {readable(details.previous_stage)}
+                        {' → '}
+                        <strong>
+                          {readable(details.new_stage)}
+                        </strong>
+                      </p>
+                    </div>
+                  )}
+
+                  {details.new_status && (
+                    <div className="border rounded-lg p-4 mt-4">
+                      <p className="font-semibold">
+                        Project Status
+                      </p>
+
+                      <p className="mt-2">
+                        {readable(details.previous_status)}
+                        {' → '}
+                        <strong>
+                          {readable(details.new_status)}
+                        </strong>
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-sm text-slate-600 mt-5">
+                    Changed by:{' '}
+                    <strong>
+                      {activity.actor_id === user.id
+                        ? 'Admin (You)'
+                        : 'Authorized Staff'}
+                    </strong>
+                  </p>
                 </article>
               );
             })}
           </div>
         )}
 
-        <p className="text-xs text-slate-500 mt-4">
+        <p className="text-sm text-slate-500 mt-5">
           Showing up to 30 recent project updates.
           All dates are displayed in UTC.
         </p>
       </section>
 
-      {/* Recent Invoices */}
+      {/* RECENT INVOICES */}
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Recent Invoices
         </h2>
 
-        {invoicesError ? (
-          <p className="mt-4 text-slate-600">
+        {invoicesResult.error ? (
+          <p className="mt-5 text-red-700">
             Invoice records are currently unavailable.
           </p>
-        ) : !invoices?.length ? (
-          <p className="mt-4 text-slate-600">
-            No invoices found.
-          </p>
+        ) : invoices.length === 0 ? (
+          <div className="panel mt-5">
+            <p className="text-slate-600">
+              No invoices have been created yet.
+            </p>
+          </div>
         ) : (
-          <div className="grid gap-3 mt-4">
+          <div className="grid gap-4 mt-5">
             {invoices.map((invoice) => (
-              <div
-                className="panel flex justify-between gap-4"
+              <article
+                className="panel"
                 key={invoice.id}
               >
-                <span>
-                  {invoice.description} · {invoice.status}
-                </span>
+                <div className="flex flex-wrap justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold">
+                      {invoice.description ||
+                        'Publishing Services'}
+                    </h3>
 
-                <b>
-                  {invoice.currency}{' '}
-                  {(invoice.amount_cents / 100).toFixed(2)}
-                </b>
-              </div>
+                    <p className="text-sm text-slate-600 mt-2">
+                      Author:{' '}
+                      {authorNames.get(invoice.author_id) ||
+                        'Registered Author'}
+                    </p>
+
+                    {invoice.project_id && (
+                      <p className="text-sm text-slate-600 mt-1">
+                        Project:{' '}
+                        {projectNames.get(invoice.project_id) ||
+                          'Publishing Project'}
+                      </p>
+                    )}
+
+                    <p className="text-sm text-slate-500 mt-2">
+                      Created:{' '}
+                      {new Date(
+                        invoice.created_at
+                      ).toLocaleDateString('en-GB', {
+                        timeZone: 'UTC',
+                        dateStyle: 'medium',
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-xl font-semibold">
+                      {money(
+                        invoice.amount_cents,
+                        invoice.currency
+                      )}
+                    </p>
+
+                    <p className="text-sm text-slate-600 mt-2">
+                      {readable(invoice.status)}
+                    </p>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
         )}
       </section>
-    </div>
+    </main>
   );
 }
