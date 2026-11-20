@@ -3,6 +3,7 @@ import { currentUser } from '@/lib/supabase';
 import { redirect, notFound } from 'next/navigation';
 import ProjectActions from '@/components/ProjectActions';
 import ApprovalButton from '@/components/ApprovalButton';
+import ProjectMessages from '@/components/ProjectMessages';
 
 export const dynamic = 'force-dynamic';
 
@@ -509,6 +510,8 @@ export default async function Project({
       </div>
 
       <ProjectActions projectId={id} />
+
+      <ProjectMessages projectId={id} />
 
       <h2 className="heading text-3xl mt-12">
         Proof Approvals
