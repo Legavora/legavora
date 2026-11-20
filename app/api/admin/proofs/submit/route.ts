@@ -48,6 +48,7 @@ export async function POST(request: Request) {
 
     const input = parsed.data;
 
+    // Only PDF proof documents are permitted.
     const extension = input.file_name
       .split('.')
       .pop()
@@ -60,20 +61,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate the administrator's storage directory.
+    // Validate the administrator's private storage directory.
     const expectedPrefix = `${user.id}/${input.project_id}/`;
+
+    if (!input.storage_path.startsWith(expectedPrefix)) {
+      return NextResponse.json(
+        { error: 'Invalid proof storage location.' },
+        { status: 400 }
+      );
+    }
 
     const storageName = input.storage_path.slice(
       expectedPrefix.length
     );
 
+    // UUID filenames have five groups: 8-4-4-4-12.
     const validStorageName =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/i;
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/i;
 
-    if (
-      !input.storage_path.startsWith(expectedPrefix) ||
-      !validStorageName.test(storageName)
-    ) {
+    if (!validStorageName.test(storageName)) {
       return NextResponse.json(
         { error: 'Invalid proof storage location.' },
         { status: 400 }
