@@ -24,6 +24,18 @@ type ProjectFile = {
   file_category: string;
 };
 
+type Review = {
+  id: string;
+  file_id: string;
+  decision: string;
+  created_at: string;
+};
+
+type EligibleFile = ProjectFile & {
+  reviewId: string;
+  reviewDate: string;
+};
+
 export default function ProjectActions({
   projectId,
 }: {
@@ -34,13 +46,19 @@ export default function ProjectActions({
   const [file, setFile] = useState<File | null>(null);
   const [revisionFile, setRevisionFile] = useState<File | null>(null);
   const [selectedFileId, setSelectedFileId] = useState('');
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [eligibleFiles, setEligibleFiles] = useState<EligibleFile[]>([]);
   const [revisionNotes, setRevisionNotes] = useState('');
+
   const [message, setMessage] = useState('');
   const [revisionMessage, setRevisionMessage] = useState('');
+
   const [busy, setBusy] = useState(false);
   const [revisionBusy, setRevisionBusy] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [checkedRequests, setCheckedRequests] = useState(false);
+
+  const [uploadKey, setUploadKey] = useState(0);
+  const [revisionKey, setRevisionKey] = useState(0);
 
   function validateFile(selected: File) {
     const extension = selected.name
@@ -100,7 +118,9 @@ export default function ProjectActions({
   ) {
     const extension = validateFile(selected);
     const fileId = crypto.randomUUID();
-    const path = `${userId}/${projectId}/${fileId}.${extension}`;
+
+    const path =
+      `${userId}/${projectId}/${fileId}.${extension}`;
 
     const { error } = await db.storage
       .from('manuscripts')
@@ -154,13 +174,15 @@ export default function ProjectActions({
         throw recordError;
       }
 
-      setMessage('File uploaded securely.');
+      setMessage('Success: Your file was uploaded securely.');
       setFile(null);
+      setUploadKey((value) => value + 1);
+
       router.refresh();
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? error.message
+          ? `Upload failed: ${error.message}`
           : 'Upload failed. Please try again.'
       );
     } finally {
@@ -168,30 +190,106 @@ export default function ProjectActions({
     }
   }
 
-  async function loadProjectFiles() {
-    setLoadingFiles(true);
-    setRevisionMessage('');
+  async function getEligibleFiles() {
+    const { db } = await verifyProject();
 
-    try {
-      const { db } = await verifyProject();
-
-      const { data, error } = await db
+    const { data: files, error: filesError } =
+      await db
         .from('project_files')
         .select(
-          'id,file_name,version_number,parent_file_id,previous_file_id,file_category'
+          'id,file_name,version_number,parent_file_id,previous_file_id,file_category,created_at'
         )
         .eq('project_id', projectId)
         .eq('file_category', 'manuscript')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+    if (filesError) throw filesError;
 
-      setProjectFiles(data || []);
+    const { data: reviews, error: reviewsError } =
+      await db
+        .from('manuscript_reviews')
+        .select('id,file_id,decision,created_at')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+
+    if (reviewsError) {
+      throw new Error(
+        'Unable to verify editorial revision requests. ' +
+        reviewsError.message
+      );
+    }
+
+    const allFiles = files || [];
+    const allReviews = (reviews || []) as Review[];
+
+    const latestReviewByFile = new Map<string, Review>();
+
+    for (const review of allReviews) {
+      if (!latestReviewByFile.has(review.file_id)) {
+        latestReviewByFile.set(review.file_id, review);
+      }
+    }
+
+    const available: EligibleFile[] = [];
+
+    for (const item of allFiles) {
+      const review = latestReviewByFile.get(item.id);
+
+      if (!review || review.decision !== 'revision_requested') {
+        continue;
+      }
+
+      const alreadySubmitted = allFiles.some(
+        (candidate) =>
+          candidate.previous_file_id === item.id &&
+          new Date(candidate.created_at).getTime() >=
+            new Date(review.created_at).getTime()
+      );
+
+      if (alreadySubmitted) continue;
+
+      available.push({
+        id: item.id,
+        file_name: item.file_name,
+        version_number: item.version_number,
+        parent_file_id: item.parent_file_id,
+        previous_file_id: item.previous_file_id,
+        file_category: item.file_category,
+        reviewId: review.id,
+        reviewDate: review.created_at,
+      });
+    }
+
+    return available;
+  }
+
+  async function loadProjectFiles() {
+    if (loadingFiles || revisionBusy) return;
+
+    setLoadingFiles(true);
+    setRevisionMessage('');
+    setCheckedRequests(false);
+    setSelectedFileId('');
+    setEligibleFiles([]);
+
+    try {
+      const available = await getEligibleFiles();
+
+      setEligibleFiles(available);
+      setCheckedRequests(true);
+
+      if (available.length === 0) {
+        setRevisionMessage(
+          'No outstanding editorial revision requests. ' +
+          'You can submit a revised manuscript when ' +
+          'Legavora requests corrections.'
+        );
+      }
     } catch (error) {
       setRevisionMessage(
         error instanceof Error
           ? error.message
-          : 'Unable to load manuscripts.'
+          : 'Unable to load revision requests.'
       );
     } finally {
       setLoadingFiles(false);
@@ -219,27 +317,22 @@ export default function ProjectActions({
 
       const { db, userId } = await verifyProject();
 
-      // Re-read the original record rather than trusting
-      // the browser's selected file information.
-      const { data: previous, error: previousError } =
-        await db
-          .from('project_files')
-          .select(
-            'id,project_id,version_number,parent_file_id,file_category'
-          )
-          .eq('id', selectedFileId)
-          .eq('project_id', projectId)
-          .eq('file_category', 'manuscript')
-          .single();
+      // Check the current editorial request again
+      // immediately before uploading.
+      const available = await getEligibleFiles();
 
-      if (previousError || !previous) {
+      const previous = available.find(
+        (item) => item.id === selectedFileId
+      );
+
+      if (!previous) {
         throw new Error(
-          'The selected manuscript could not be verified.'
+          'This manuscript does not have an outstanding ' +
+          'revision request, or the request has already ' +
+          'been fulfilled.'
         );
       }
 
-      // Preserve the original version as the root
-      // of this manuscript's revision history.
       const rootFileId =
         previous.parent_file_id || previous.id;
 
@@ -277,20 +370,30 @@ export default function ProjectActions({
         throw recordError;
       }
 
+      // Keep the confirmation visible even when
+      // the page refreshes.
       setRevisionMessage(
-        `Revised manuscript submitted successfully. Version ${nextVersion} has been recorded.`
+        `Success: Your revised manuscript was submitted. ` +
+        `Version ${nextVersion} has been recorded.`
       );
 
       setRevisionFile(null);
       setSelectedFileId('');
       setRevisionNotes('');
+      setRevisionKey((value) => value + 1);
 
-      await loadProjectFiles();
+      // Hide the fulfilled request from this form.
+      setEligibleFiles((current) =>
+        current.filter(
+          (item) => item.id !== previous.id
+        )
+      );
+
       router.refresh();
     } catch (error) {
       setRevisionMessage(
         error instanceof Error
-          ? error.message
+          ? `Revision failed: ${error.message}`
           : 'Unable to submit manuscript revision.'
       );
     } finally {
@@ -298,9 +401,14 @@ export default function ProjectActions({
     }
   }
 
+  const revisionSucceeded =
+    revisionMessage.startsWith('Success:');
+
+  const uploadSucceeded =
+    message.startsWith('Success:');
+
   return (
     <div className="space-y-6 mt-6">
-      {/* EXISTING FILE UPLOAD */}
       <form
         onSubmit={upload}
         className="panel space-y-3"
@@ -316,6 +424,7 @@ export default function ProjectActions({
         </p>
 
         <input
+          key={uploadKey}
           type="file"
           required
           accept=".pdf,.docx,.epub,.jpg,.jpeg,.png"
@@ -325,6 +434,7 @@ export default function ProjectActions({
         />
 
         <button
+          type="submit"
           disabled={busy || !file}
           className="btn"
         >
@@ -332,23 +442,30 @@ export default function ProjectActions({
         </button>
 
         {message && (
-          <p role="status" className="text-sm">
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              uploadSucceeded
+                ? 'text-sm font-semibold text-green-700'
+                : 'text-sm font-semibold text-red-700'
+            }
+          >
             {message}
           </p>
         )}
       </form>
 
-      {/* MANUSCRIPT REVISION SUBMISSION */}
       <section className="panel space-y-4">
         <h3 className="font-serif text-xl">
           Submit a Revised Manuscript
         </h3>
 
         <p className="text-sm text-slate-600">
-          If Legavora has requested editorial
-          corrections, upload your revised manuscript
-          here. Your previous manuscript and its
-          editorial history will be preserved.
+          Revised manuscripts can only be submitted
+          after Legavora requests editorial corrections.
+          Your previous manuscript and revision history
+          will be preserved.
         </p>
 
         <button
@@ -358,11 +475,11 @@ export default function ProjectActions({
           className="btn"
         >
           {loadingFiles
-            ? 'Loading Manuscripts...'
-            : 'Select Manuscript for Revision'}
+            ? 'Checking Revision Requests...'
+            : 'Check Editorial Revision Requests'}
         </button>
 
-        {projectFiles.length > 0 && (
+        {checkedRequests && eligibleFiles.length > 0 && (
           <form
             onSubmit={submitRevision}
             className="space-y-4"
@@ -372,7 +489,7 @@ export default function ProjectActions({
                 htmlFor="previous-manuscript"
                 className="block text-sm font-semibold mb-2"
               >
-                Manuscript to Revise
+                Manuscript Requiring Revision
               </label>
 
               <select
@@ -388,7 +505,7 @@ export default function ProjectActions({
                   Choose a manuscript
                 </option>
 
-                {projectFiles.map((item) => (
+                {eligibleFiles.map((item) => (
                   <option
                     key={item.id}
                     value={item.id}
@@ -409,6 +526,7 @@ export default function ProjectActions({
               </label>
 
               <input
+                key={revisionKey}
                 id="revised-file"
                 type="file"
                 required
@@ -443,6 +561,7 @@ export default function ProjectActions({
             </div>
 
             <button
+              type="submit"
               disabled={
                 revisionBusy ||
                 !revisionFile ||
@@ -458,7 +577,15 @@ export default function ProjectActions({
         )}
 
         {revisionMessage && (
-          <p role="status" className="text-sm">
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              revisionSucceeded
+                ? 'text-sm font-semibold text-green-700'
+                : 'text-sm font-semibold text-slate-700'
+            }
+          >
             {revisionMessage}
           </p>
         )}
