@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
+import AdminRevisionUpload from '@/components/AdminRevisionUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -539,6 +540,30 @@ export default async function AdminProjectDetails({
         ) : (
           <p>
             No project files have been uploaded yet.
+          </p>
+        )}
+      </section>
+
+      {/* ADMINISTRATOR FILE REVISION UPLOAD */}
+      <section className="panel space-y-4">
+        <h2>File Revisions</h2>
+        <p className="text-sm text-slate-600">
+          Upload a corrected version of an existing project file.
+          Earlier versions remain available in the project history.
+        </p>
+
+        {files?.length ? (
+          <AdminRevisionUpload
+            projectId={id}
+            existingFiles={files.map((file) => ({
+              id: file.id,
+              file_name: file.file_name || 'Project file',
+              version_number: file.version_number ?? 1,
+            }))}
+          />
+        ) : (
+          <p className="text-sm text-slate-600">
+            Upload an initial project file before adding a revision.
           </p>
         )}
       </section>
