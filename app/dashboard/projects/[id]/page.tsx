@@ -175,7 +175,7 @@ export default async function Project({
 
     db
       .from('approvals')
-      .select('id,label,status,created_at')
+      .select('id,label,status,created_at,file_id')
       .eq('project_id', id),
 
     db
@@ -531,9 +531,23 @@ export default async function Project({
                 </p>
               </div>
 
-              {approval.status === 'pending' && (
-                <ApprovalButton id={approval.id} />
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {approval.file_id && (
+                  <a
+                    href={`/api/author/proofs/view?id=${encodeURIComponent(approval.id)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-lg border border-[#cba45b] px-4 py-2 text-sm font-semibold text-[#a67c36] hover:bg-amber-50"
+                    aria-label={`View proof: ${approval.label}`}
+                  >
+                    View Proof
+                  </a>
+                )}
+
+                {approval.status === 'pending' && (
+                  <ApprovalButton id={approval.id} />
+                )}
+              </div>
             </div>
           ))
         ) : (
