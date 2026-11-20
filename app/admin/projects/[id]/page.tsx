@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
 import AdminRevisionUpload from '@/components/AdminRevisionUpload';
+import AdminProofUpload from '@/components/AdminProofUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -610,6 +611,12 @@ export default async function AdminProjectDetails({
             No editorial reviews have been recorded yet.
           </p>
         )}
+      </section>
+
+      {/* ADMINISTRATOR PROOF SUBMISSION */}
+      <section className="panel space-y-4">
+        <h2>Proof Submission</h2>
+        <AdminProofUpload projectId={id} />
       </section>
 
       {/* AUTHOR PROOF DECISIONS — ADMINISTRATOR ONLY */}
