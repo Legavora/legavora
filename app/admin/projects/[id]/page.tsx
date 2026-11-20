@@ -1,174 +1,68 @@
+                  </h3>
+                  <span className="text-sm font-semibold">
+                    {format(currentStatus)}
+                  </span>
+                </div>
 
-import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { currentUser } from '@/lib/supabase';
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block space-y-2 text-sm font-medium">
+                    <span>Production Status</span>
+                    <select
+                      key={`${stage.key}-${currentStatus}`}
+                      name="status"
+                      defaultValue={currentStatus}
+                      className="w-full rounded-md border bg-white p-3 text-slate-900"
+                    >
+                      {PRODUCTION_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {format(status)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-export const dynamic = 'force-dynamic';
+                  <label className="block space-y-2 text-sm font-medium">
+                    <span>Due Date</span>
+                    <input
+                      key={`${stage.key}-${task?.due_date || ''}`}
+                      type="date"
+                      name="due_date"
+                      defaultValue={task?.due_date || ''}
+                      className="w-full rounded-md border bg-white p-3 text-slate-900"
+                    />
+                  </label>
+                </div>
 
-type Props = {
-  params: Promise<{ id: string }>;
-};
+                <label className="block space-y-2 text-sm font-medium">
+                  <span>Production Notes</span>
+                  <textarea
+                    key={`${stage.key}-${task?.updated_at || 'new'}`}
+                    name="notes"
+                    defaultValue={task?.notes || ''}
+                    rows={3}
+                    maxLength={5000}
+                    placeholder="Record progress, deliverables, or outstanding work."
+                    className="w-full rounded-md border bg-white p-3 text-slate-900"
+                  />
+                </label>
 
-type ReviewRecord = {
-  id: string;
-  file_id: string;
-  reviewer_id: string;
-  decision: string;
-  review_notes: string;
-  created_at: string;
-};
+                <p className="text-xs text-slate-600">
+                  Assigned staff: {task?.assigned_to ? 'Assigned' : 'Not assigned'}
+                  {task?.updated_at
+                    ? ` · Last updated: ${formatDate(task.updated_at)}`
+                    : ' · Not yet saved'}
+                </p>
 
-function format(value: string) {
-  return value
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-export default async function AdminProjectDetails({
-  params,
-}: Props) {
-  const { id } = await params;
-  const { db, user } = await currentUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-
-  const { data: profile, error: profileError } = await db
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (profileError || !profile) {
-    throw new Error(
-      'Unable to verify administrator access'
-    );
-  }
-
-  if (!['admin', 'manager'].includes(profile.role)) {
-    redirect('/dashboard');
-  }
-
-  const { data: project, error: projectError } = await db
-    .from('projects')
-    .select(
-      'id,title,status,stage,author_id,created_at'
-    )
-    .eq('id', id)
-    .single();
-
-  if (projectError || !project) {
-    notFound();
-  }
-
-  const { data: author } = await db
-    .from('profiles')
-    .select('full_name,author_number')
-    .eq('id', project.author_id)
-    .single();
-
-  const { data: files, error: filesError } = await db
-    .from('project_files')
-    .select('*')
-    .eq('project_id', id)
-    .order('created_at', {
-      ascending: false,
-    });
-
-  const { data: invoices, error: invoicesError } = await db
-    .from('invoices')
-    .select(
-      'id,description,amount_cents,currency,status'
-    )
-    .eq('project_id', id)
-    .order('created_at', {
-      ascending: false,
-    });
-
-  const { data: reviews, error: reviewsError } = await db
-    .from('manuscript_reviews')
-    .select(
-      'id,file_id,reviewer_id,decision,review_notes,created_at'
-    )
-    .eq('project_id', id)
-    .order('created_at', {
-      ascending: false,
-    });
-
-  if (filesError || invoicesError || reviewsError) {
-    throw new Error(
-      'Unable to load project records'
-    );
-  }
-
-  const reviewHistory: ReviewRecord[] = reviews || [];
-
-  const fileNames = new Map(
-    (files || []).map((file) => [
-      file.id,
-      file.file_name || 'Project file',
-    ])
-  );
-
-  return (
-    <main className="container py-12 space-y-8">
-      <Link
-        href="/admin"
-        className="text-sm underline"
-      >
-        Back to Administrator Dashboard
-      </Link>
-
-      <header className="space-y-3">
-        <p className="uppercase tracking-widest text-sm">
-          Legavora Publishing Operations
-        </p>
-
-        <h1>{project.title}</h1>
-
-        <p>Administrator Project Management</p>
-      </header>
-
-      {/* PROJECT OVERVIEW */}
-      <section className="panel space-y-4">
-        <h2>Project Overview</h2>
-
-        <p>
-          <strong>Author:</strong>{' '}
-          {author?.full_name || 'Registered Author'}
-        </p>
-
-        <p>
-          <strong>Author Number:</strong>{' '}
-          {author?.author_number
-            ? `#${author.author_number}`
-            : 'Not assigned'}
-        </p>
-
-        <p>
-          <strong>Status:</strong>{' '}
-          {format(project.status)}
-        </p>
-
-        <p>
-          <strong>Publishing Stage:</strong>{' '}
-          {format(project.stage)}
-        </p>
-
-        <p>
-          <strong>Created:</strong>{' '}
-          {formatDate(project.created_at)}
-        </p>
+                <button
+                  type="submit"
+                  className="rounded-md bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Save Production Stage
+                </button>
+              </form>
+            );
+          })}
+        </div>
       </section>
 
       {/* PROJECT FILES */}
@@ -264,121 +158,3 @@ export default async function AdminProjectDetails({
                           <strong>Reviewed:</strong>{' '}
                           {formatDate(
                             latestReview.created_at
-                          )}
-                        </p>
-
-                        <p className="text-sm whitespace-pre-wrap">
-                          {latestReview.review_notes}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-slate-600">
-                        This file has not yet received
-                        an editorial review.
-                      </p>
-                    )}
-
-                    <Link
-                      href={`/admin/projects/${encodeURIComponent(
-                        id
-                      )}/reviews/${encodeURIComponent(
-                        file.id
-                      )}`}
-                      className="inline-block text-sm font-semibold underline"
-                    >
-                      Open Manuscript Review
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p>
-            No project files have been uploaded yet.
-          </p>
-        )}
-      </section>
-
-      {/* EDITORIAL REVIEW HISTORY */}
-      <section className="panel space-y-4">
-        <h2>Editorial Review History</h2>
-
-        <p className="text-sm text-slate-600">
-          A record of Legavora's editorial decisions
-          and feedback for this publishing project.
-        </p>
-
-        {reviewHistory.length ? (
-          <div className="space-y-4">
-            {reviewHistory.map((review) => (
-              <div
-                key={review.id}
-                className="border-b py-4 space-y-2"
-              >
-                <p className="font-semibold">
-                  {fileNames.get(review.file_id) ||
-                    'Project file'}
-                </p>
-
-                <p className="text-sm">
-                  <strong>Decision:</strong>{' '}
-                  {format(review.decision)}
-                </p>
-
-                <p className="text-sm">
-                  <strong>Date:</strong>{' '}
-                  {formatDate(review.created_at)}
-                </p>
-
-                <p className="text-sm whitespace-pre-wrap">
-                  {review.review_notes}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p>
-            No editorial reviews have been recorded yet.
-          </p>
-        )}
-      </section>
-
-      {/* PROJECT INVOICES */}
-      <section className="panel space-y-4">
-        <h2>Project Invoices</h2>
-
-        {invoices?.length ? (
-          <div className="space-y-3">
-            {invoices.map((invoice) => (
-              <div
-                key={invoice.id}
-                className="border-b py-3"
-              >
-                <p className="font-semibold">
-                  {invoice.description ||
-                    'Publishing Service'}
-                </p>
-
-                <p>
-                  {invoice.currency}{' '}
-                  {(
-                    invoice.amount_cents / 100
-                  ).toFixed(2)}
-                </p>
-
-                <p className="text-sm">
-                  Status: {format(invoice.status)}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p>
-            No invoices are associated with this project.
-          </p>
-        )}
-      </section>
-    </main>
-  );
-}
