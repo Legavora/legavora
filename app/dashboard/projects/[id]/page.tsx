@@ -63,12 +63,73 @@ const publishingStages = [
   },
 ];
 
+const productionStages = [
+  {
+    key: 'interior_formatting',
+    label: 'Interior Formatting and Layout',
+  },
+  {
+    key: 'cover_design',
+    label: 'Cover Design',
+  },
+  {
+    key: 'ebook_conversion',
+    label: 'eBook Conversion',
+  },
+  {
+    key: 'proof_preparation',
+    label: 'Proof Preparation',
+  },
+  {
+    key: 'quality_assurance',
+    label: 'Quality Assurance',
+  },
+  {
+    key: 'distribution_setup',
+    label: 'Distribution Setup',
+  },
+  {
+    key: 'publication',
+    label: 'Publication',
+  },
+];
+
+type ProductionTask = {
+  id: string;
+  stage_key: string;
+  status: string;
+  due_date: string | null;
+  notes: string | null;
+  updated_at: string;
+};
+
 function formatLabel(value: string | null | undefined) {
   if (!value) return 'Not specified';
 
   return value
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'Not scheduled';
+
+  const date = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T00:00:00Z`
+      : value
+  );
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Not scheduled';
+  }
+
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 export default async function Project({
@@ -104,6 +165,7 @@ export default async function Project({
     { data: files },
     { data: approvals },
     { data: distribution },
+    { data: productionTasks, error: productionError },
   ] = await Promise.all([
     db
       .from('project_files')
@@ -120,7 +182,36 @@ export default async function Project({
       .from('distribution_records')
       .select('platform,status,retailer_url')
       .eq('project_id', id),
+
+    db
+      .from('production_tasks')
+      .select(
+        'id,stage_key,status,due_date,notes,updated_at'
+      )
+      .eq('project_id', id),
   ]);
+
+  if (productionError) {
+    console.error(
+      'Unable to load production progress:',
+      productionError.message
+    );
+  }
+
+  const taskMap = new Map<string, ProductionTask>();
+
+  for (const task of (productionTasks || []) as ProductionTask[]) {
+    taskMap.set(task.stage_key, task);
+  }
+
+  const completedProductionStages =
+    productionStages.filter((stage) => {
+      return taskMap.get(stage.key)?.status === 'completed';
+    }).length;
+
+  const productionProgress = Math.round(
+    (completedProductionStages / productionStages.length) * 100
+  );
 
   const stageIndex = publishingStages.findIndex(
     (stage) => stage.key === project.stage
@@ -213,6 +304,126 @@ export default async function Project({
           </p>
         </div>
       </div>
+
+      {/* READ-ONLY PRODUCTION TRACKER */}
+      <section className="panel mt-8 space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-2xl">
+              Publishing Production Progress
+            </h2>
+
+            <p className="text-sm text-slate-600 mt-2">
+              Follow the production of your book, including
+              formatting, cover design, quality checks,
+              and publication preparation.
+            </p>
+          </div>
+
+          <div className="text-right">
+            <p className="text-2xl font-semibold">
+              {productionProgress}%
+            </p>
+
+            <p className="text-xs text-slate-500">
+              {completedProductionStages} of{' '}
+              {productionStages.length} stages completed
+            </p>
+          </div>
+        </div>
+
+        <div
+          className="h-3 w-full overflow-hidden rounded-full bg-slate-200"
+          role="progressbar"
+          aria-label="Publishing production completion"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={productionProgress}
+        >
+          <div
+            className="h-full rounded-full bg-[#cba45b]"
+            style={{ width: `${productionProgress}%` }}
+          />
+        </div>
+
+        {productionError && (
+          <p className="text-sm text-red-700" role="alert">
+            Production updates are temporarily unavailable.
+            Please check again later.
+          </p>
+        )}
+
+        <div className="space-y-4">
+          {productionStages.map((stage, index) => {
+            const task = taskMap.get(stage.key);
+            const status = task?.status || 'not_started';
+
+            return (
+              <div
+                key={stage.key}
+                className="rounded-lg border border-slate-200 p-5 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-semibold">
+                    {index + 1}. {stage.label}
+                  </h3>
+
+                  <span className="text-sm font-semibold text-slate-700">
+                    {formatLabel(status)}
+                  </span>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Production Status
+                    </p>
+
+                    <p className="text-sm font-medium mt-1">
+                      {formatLabel(status)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Target Due Date
+                    </p>
+
+                    <p className="text-sm font-medium mt-1">
+                      {formatDate(task?.due_date)}
+                    </p>
+                  </div>
+                </div>
+
+                {task?.notes && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-slate-500">
+                      Production Update
+                    </p>
+
+                    <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">
+                      {task.notes}
+                    </p>
+                  </div>
+                )}
+
+                {task?.updated_at && (
+                  <p className="text-xs text-slate-500">
+                    Last updated:{' '}
+                    {formatDate(task.updated_at)}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-sm text-slate-500">
+          Production updates are provided by Legavora.
+          This section is read-only and cannot be edited
+          by authors.
+        </p>
+      </section>
 
       <div className="grid md:grid-cols-2 gap-6 mt-8">
         <div className="panel">
