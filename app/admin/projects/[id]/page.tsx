@@ -1,4 +1,335 @@
+
+import Link from 'next/link';
+import { revalidatePath } from 'next/cache';
+import { notFound, redirect } from 'next/navigation';
+import { currentUser } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
+
+type Props = {
+  params: Promise<{ id: string }>;
+};
+
+type ReviewRecord = {
+  id: string;
+  file_id: string;
+  reviewer_id: string;
+  decision: string;
+  review_notes: string;
+  created_at: string;
+};
+
+function format(value: string) {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+const PRODUCTION_STAGES = [
+  { key: 'interior_formatting', label: 'Interior Formatting and Layout' },
+  { key: 'cover_design', label: 'Cover Design' },
+  { key: 'proofreading', label: 'Proofreading' },
+  { key: 'quality_control', label: 'Quality Control' },
+  { key: 'author_proof_approval', label: 'Author Proof Approval' },
+  { key: 'final_production_approval', label: 'Final Production Approval' },
+  { key: 'distribution_preparation', label: 'Distribution Preparation' },
+] as const;
+
+const PRODUCTION_STATUSES = [
+  'not_started',
+  'in_progress',
+  'awaiting_review',
+  'revision_required',
+  'completed',
+  'on_hold',
+] as const;
+
+async function saveProductionTask(formData: FormData) {
+  'use server';
+
+  const projectId = String(formData.get('project_id') || '');
+  const taskType = String(formData.get('task_type') || '');
+  const status = String(formData.get('status') || '');
+  const dueDate = String(formData.get('due_date') || '').trim();
+  const notes = String(formData.get('notes') || '').trim();
+
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId) ||
+    !PRODUCTION_STAGES.some((stage) => stage.key === taskType) ||
+    !PRODUCTION_STATUSES.some((allowed) => allowed === status) ||
+    (dueDate !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) ||
+    notes.length > 5000
+  ) {
+    throw new Error('Invalid production task details');
+  }
+
+  const { db, user } = await currentUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data: profile, error: profileError } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (
+    profileError ||
+    !profile ||
+    !['admin', 'manager'].includes(profile.role)
+  ) {
+    throw new Error('Administrator access required');
+  }
+
+  const { data: project, error: projectError } = await db
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .single();
+
+  if (projectError || !project) {
+    throw new Error('Publishing project not found');
+  }
+
+  const { error } = await db
+    .from('production_tasks')
+    .upsert(
+      {
+        project_id: projectId,
+        task_type: taskType,
+        status,
+        due_date: dueDate || null,
+        notes: notes || null,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'project_id,task_type',
+      }
+    );
+
+  if (error) {
+    throw new Error(
+      `Unable to save production task: ${error.message}`
+    );
+  }
+
+  revalidatePath(`/admin/projects/${projectId}`);
+}
+
+export default async function AdminProjectDetails({
+  params,
+}: Props) {
+  const { id } = await params;
+  const { db, user } = await currentUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data: profile, error: profileError } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error(
+      'Unable to verify administrator access'
+    );
+  }
+
+  if (!['admin', 'manager'].includes(profile.role)) {
+    redirect('/dashboard');
+  }
+
+  const { data: project, error: projectError } = await db
+    .from('projects')
+    .select(
+      'id,title,status,stage,author_id,created_at'
+    )
+    .eq('id', id)
+    .single();
+
+  if (projectError || !project) {
+    notFound();
+  }
+
+  const { data: author } = await db
+    .from('profiles')
+    .select('full_name,author_number')
+    .eq('id', project.author_id)
+    .single();
+
+  const { data: files, error: filesError } = await db
+    .from('project_files')
+    .select('*')
+    .eq('project_id', id)
+    .order('created_at', {
+      ascending: false,
+    });
+
+  const { data: invoices, error: invoicesError } = await db
+    .from('invoices')
+    .select(
+      'id,description,amount_cents,currency,status'
+    )
+    .eq('project_id', id)
+    .order('created_at', {
+      ascending: false,
+    });
+
+  const { data: reviews, error: reviewsError } = await db
+    .from('manuscript_reviews')
+    .select(
+      'id,file_id,reviewer_id,decision,review_notes,created_at'
+    )
+    .eq('project_id', id)
+    .order('created_at', {
+      ascending: false,
+    });
+
+  if (filesError || invoicesError || reviewsError) {
+    throw new Error(
+      'Unable to load project records'
+    );
+  }
+
+  const {
+    data: productionTasks,
+    error: productionError,
+  } = await db
+    .from('production_tasks')
+    .select(
+      'id,task_type,status,assigned_to,due_date,notes,updated_at'
+    )
+    .eq('project_id', id);
+
+  if (productionError) {
+    throw new Error(
+      `Unable to load production tasks: ${productionError.message}`
+    );
+  }
+
+  const tasksByType = new Map(
+    (productionTasks || []).map((task) => [
+      task.task_type,
+      task,
+    ])
+  );
+
+  const reviewHistory: ReviewRecord[] = reviews || [];
+
+  const fileNames = new Map(
+    (files || []).map((file) => [
+      file.id,
+      file.file_name || 'Project file',
+    ])
+  );
+
+  return (
+    <main className="container py-12 space-y-8">
+      <Link
+        href="/admin"
+        className="text-sm underline"
+      >
+        Back to Administrator Dashboard
+      </Link>
+
+      <header className="space-y-3">
+        <p className="uppercase tracking-widest text-sm">
+          Legavora Publishing Operations
+        </p>
+
+        <h1>{project.title}</h1>
+
+        <p>Administrator Project Management</p>
+      </header>
+
+      {/* PROJECT OVERVIEW */}
+      <section className="panel space-y-4">
+        <h2>Project Overview</h2>
+
+        <p>
+          <strong>Author:</strong>{' '}
+          {author?.full_name || 'Registered Author'}
+        </p>
+
+        <p>
+          <strong>Author Number:</strong>{' '}
+          {author?.author_number
+            ? `#${author.author_number}`
+            : 'Not assigned'}
+        </p>
+
+        <p>
+          <strong>Status:</strong>{' '}
+          {format(project.status)}
+        </p>
+
+        <p>
+          <strong>Publishing Stage:</strong>{' '}
+          {format(project.stage)}
+        </p>
+
+        <p>
+          <strong>Created:</strong>{' '}
+          {formatDate(project.created_at)}
+        </p>
+      </section>
+
+      {/* PUBLISHING PRODUCTION MANAGEMENT */}
+      <section className="panel space-y-6">
+        <div className="space-y-2">
+          <h2>Publishing Production Management</h2>
+
+          <p className="text-sm text-slate-600">
+            Track each production stage separately.
+            Only authorized Legavora staff can save
+            changes. Authors can view their project's
+            progress.
+          </p>
+        </div>
+
+        <div className="grid gap-5">
+          {PRODUCTION_STAGES.map((stage, index) => {
+            const task = tasksByType.get(stage.key);
+            const currentStatus =
+              task?.status || 'not_started';
+
+            return (
+              <form
+                key={stage.key}
+                action={saveProductionTask}
+                className="rounded-lg border p-5 space-y-4"
+              >
+                <input
+                  type="hidden"
+                  name="project_id"
+                  value={id}
+                />
+
+                <input
+                  type="hidden"
+                  name="task_type"
+                  value={stage.key}
+                />
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">
+                    {index + 1}. {stage.label}
                   </h3>
+
                   <span className="text-sm font-semibold">
                     {format(currentStatus)}
                   </span>
@@ -7,22 +338,29 @@
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="block space-y-2 text-sm font-medium">
                     <span>Production Status</span>
+
                     <select
                       key={`${stage.key}-${currentStatus}`}
                       name="status"
                       defaultValue={currentStatus}
                       className="w-full rounded-md border bg-white p-3 text-slate-900"
                     >
-                      {PRODUCTION_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {format(status)}
-                        </option>
-                      ))}
+                      {PRODUCTION_STATUSES.map(
+                        (status) => (
+                          <option
+                            key={status}
+                            value={status}
+                          >
+                            {format(status)}
+                          </option>
+                        )
+                      )}
                     </select>
                   </label>
 
                   <label className="block space-y-2 text-sm font-medium">
                     <span>Due Date</span>
+
                     <input
                       key={`${stage.key}-${task?.due_date || ''}`}
                       type="date"
@@ -35,6 +373,7 @@
 
                 <label className="block space-y-2 text-sm font-medium">
                   <span>Production Notes</span>
+
                   <textarea
                     key={`${stage.key}-${task?.updated_at || 'new'}`}
                     name="notes"
@@ -47,7 +386,11 @@
                 </label>
 
                 <p className="text-xs text-slate-600">
-                  Assigned staff: {task?.assigned_to ? 'Assigned' : 'Not assigned'}
+                  Assigned staff:{' '}
+                  {task?.assigned_to
+                    ? 'Assigned'
+                    : 'Not assigned'}
+
                   {task?.updated_at
                     ? ` · Last updated: ${formatDate(task.updated_at)}`
                     : ' · Not yet saved'}
@@ -158,3 +501,121 @@
                           <strong>Reviewed:</strong>{' '}
                           {formatDate(
                             latestReview.created_at
+                          )}
+                        </p>
+
+                        <p className="text-sm whitespace-pre-wrap">
+                          {latestReview.review_notes}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-600">
+                        This file has not yet received
+                        an editorial review.
+                      </p>
+                    )}
+
+                    <Link
+                      href={`/admin/projects/${encodeURIComponent(
+                        id
+                      )}/reviews/${encodeURIComponent(
+                        file.id
+                      )}`}
+                      className="inline-block text-sm font-semibold underline"
+                    >
+                      Open Manuscript Review
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p>
+            No project files have been uploaded yet.
+          </p>
+        )}
+      </section>
+
+      {/* EDITORIAL REVIEW HISTORY */}
+      <section className="panel space-y-4">
+        <h2>Editorial Review History</h2>
+
+        <p className="text-sm text-slate-600">
+          A record of Legavora's editorial decisions
+          and feedback for this publishing project.
+        </p>
+
+        {reviewHistory.length ? (
+          <div className="space-y-4">
+            {reviewHistory.map((review) => (
+              <div
+                key={review.id}
+                className="border-b py-4 space-y-2"
+              >
+                <p className="font-semibold">
+                  {fileNames.get(review.file_id) ||
+                    'Project file'}
+                </p>
+
+                <p className="text-sm">
+                  <strong>Decision:</strong>{' '}
+                  {format(review.decision)}
+                </p>
+
+                <p className="text-sm">
+                  <strong>Date:</strong>{' '}
+                  {formatDate(review.created_at)}
+                </p>
+
+                <p className="text-sm whitespace-pre-wrap">
+                  {review.review_notes}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>
+            No editorial reviews have been recorded yet.
+          </p>
+        )}
+      </section>
+
+      {/* PROJECT INVOICES */}
+      <section className="panel space-y-4">
+        <h2>Project Invoices</h2>
+
+        {invoices?.length ? (
+          <div className="space-y-3">
+            {invoices.map((invoice) => (
+              <div
+                key={invoice.id}
+                className="border-b py-3"
+              >
+                <p className="font-semibold">
+                  {invoice.description ||
+                    'Publishing Service'}
+                </p>
+
+                <p>
+                  {invoice.currency}{' '}
+                  {(
+                    invoice.amount_cents / 100
+                  ).toFixed(2)}
+                </p>
+
+                <p className="text-sm">
+                  Status: {format(invoice.status)}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>
+            No invoices are associated with this project.
+          </p>
+        )}
+      </section>
+    </main>
+  );
+}
