@@ -199,7 +199,13 @@ export default async function AdminProjectDetails({
       ascending: false,
     });
 
-  if (filesError || invoicesError || reviewsError) {
+  const { data: proofApprovals, error: approvalsError } = await db
+    .from('approvals')
+    .select('id,label,status,file_id,author_feedback,created_at,responded_at,approved_at')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
+
+  if (filesError || invoicesError || reviewsError || approvalsError) {
     throw new Error(
       'Unable to load project records'
     );
@@ -578,6 +584,83 @@ export default async function AdminProjectDetails({
           <p>
             No editorial reviews have been recorded yet.
           </p>
+        )}
+      </section>
+
+      {/* AUTHOR PROOF DECISIONS — ADMINISTRATOR ONLY */}
+      <section className="panel space-y-4">
+        <div className="space-y-2">
+          <h2>Author Proof Decisions</h2>
+          <p className="text-sm text-slate-600">
+            Review author approvals and correction requests. Correction feedback
+            is recorded here for Legavora's publishing team. This section does
+            not change an author's decision or publish revised files.
+          </p>
+        </div>
+
+        {proofApprovals?.length ? (
+          <div className="space-y-4">
+            {proofApprovals.map((approval) => (
+              <article
+                key={approval.id}
+                className="rounded-lg border p-5 space-y-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h3 className="font-semibold">{approval.label}</h3>
+                  <span className="text-sm font-semibold">
+                    {format(approval.status)}
+                  </span>
+                </div>
+
+                <p className="text-sm text-slate-600">
+                  Requested: {formatDate(approval.created_at)}
+                </p>
+
+                {approval.responded_at && (
+                  <p className="text-sm text-slate-600">
+                    Author responded: {formatDate(approval.responded_at)}
+                  </p>
+                )}
+
+                {approval.approved_at && (
+                  <p className="text-sm text-slate-600">
+                    Approved: {formatDate(approval.approved_at)}
+                  </p>
+                )}
+
+                {approval.file_id && (
+                  <p className="text-sm">
+                    <strong>Related file:</strong>{' '}
+                    {fileNames.get(approval.file_id) || 'Project file'}
+                  </p>
+                )}
+
+                {approval.author_feedback ? (
+                  <div className="rounded-md border bg-slate-50 p-4 space-y-2">
+                    <p className="text-sm font-semibold">Author Feedback</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">
+                      {approval.author_feedback}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    No written feedback submitted.
+                  </p>
+                )}
+
+                {['corrections_requested', 'changes_requested'].includes(
+                  approval.status
+                ) && (
+                  <p className="text-sm font-semibold">
+                    Action required: Review the author's feedback and prepare a
+                    revised proof before requesting approval again.
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No proof approval requests have been recorded for this project.</p>
         )}
       </section>
 
