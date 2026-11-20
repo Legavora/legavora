@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { browserDb } from '@/lib/supabase-browser';
 
 type Props = {
   projectId: string;
@@ -15,114 +15,170 @@ export default function AdminProofUpload({
   projectId,
 }: Props) {
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [proofLabel, setProofLabel] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (uploading) return;
+    if (busy) return;
 
     setMessage('');
-    setError('');
+    setErrorMessage('');
 
     if (!file) {
-      setError('Please select a PDF proof.');
+      setErrorMessage('Please select a PDF proof.');
       return;
     }
 
     if (!proofLabel.trim()) {
-      setError('Please enter a proof title.');
+      setErrorMessage('Please enter a proof title.');
       return;
     }
+
+    const extension = file.name
+      .split('.')
+      .pop()
+      ?.toLowerCase();
 
     if (
+      extension !== 'pdf' ||
       file.size === 0 ||
-      file.size > MAX_FILE_SIZE ||
-      file.name.split('.').pop()?.toLowerCase() !== 'pdf'
+      file.size > MAX_FILE_SIZE
     ) {
-      setError('Select a valid PDF file of 50 MB or less.');
+      setErrorMessage(
+        'Please select a valid PDF file no larger than 50 MB.'
+      );
       return;
     }
 
-    setUploading(true);
+    setBusy(true);
 
     try {
-      const supabase = createClient();
+      const db = browserDb();
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+      // Verify the signed-in user.
+      const { data: authData, error: authError } =
+        await db.auth.getUser();
 
-      if (authError || !user) {
-        throw new Error('Please sign in as an administrator.');
+      if (authError || !authData.user) {
+        throw new Error(
+          'Your session has expired. Please sign in again.'
+        );
       }
 
-      const storagePath =
-        `${user.id}/${projectId}/${crypto.randomUUID()}.pdf`;
+      const userId = authData.user.id;
 
-      const { error: uploadError } = await supabase.storage
+      // Confirm administrator or manager permissions.
+      const { data: profile, error: profileError } =
+        await db
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+      if (
+        profileError ||
+        !profile ||
+        !['admin', 'manager'].includes(profile.role)
+      ) {
+        throw new Error('Administrator access required.');
+      }
+
+      // Create a unique private storage location.
+      const fileId = crypto.randomUUID();
+
+      const storagePath =
+        `${userId}/${projectId}/${fileId}.pdf`;
+
+      // Upload the PDF to Supabase Storage.
+      const { error: uploadError } = await db.storage
         .from('manuscripts')
         .upload(storagePath, file, {
-          contentType: 'application/pdf',
           upsert: false,
+          contentType: 'application/pdf',
         });
 
       if (uploadError) {
         throw new Error(uploadError.message);
       }
 
-      const response = await fetch('/api/admin/proofs/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          project_id: projectId,
-          storage_path: storagePath,
-          file_name: file.name,
-          size_bytes: file.size,
-          proof_label: proofLabel.trim(),
-        }),
-      });
+      // Register the proof and create its approval request.
+      let response: Response;
 
-      const result = await response.json();
+      try {
+        response = await fetch('/api/admin/proofs/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            storage_path: storagePath,
+            file_name: file.name,
+            size_bytes: file.size,
+            proof_label: proofLabel.trim(),
+          }),
+        });
+      } catch {
+        throw new Error(
+          'The PDF was uploaded, but the approval request ' +
+          'could not be registered. Contact an administrator ' +
+          'before trying again.'
+        );
+      }
+
+      const responseText = await response.text();
+
+      let result: {
+        ok?: boolean;
+        error?: string;
+        file_id?: string;
+        approval_id?: string;
+      } = {};
+
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          'The server returned an unexpected response. ' +
+          'Please check the deployment logs before retrying.'
+        );
+      }
 
       if (!response.ok || !result.ok) {
         throw new Error(
-          result.error || 'Unable to submit proof for review.'
+          result.error ||
+          'Unable to register proof for author approval.'
         );
       }
 
       setMessage(
-        'Proof submitted successfully. The author can now review it.'
+        'Proof submitted successfully. ' +
+        'An approval request has been created for the author.'
       );
 
       setFile(null);
       setProofLabel('');
 
-      const fileInput = document.getElementById(
-        'admin-proof-file'
-      ) as HTMLInputElement | null;
-
-      if (fileInput) {
-        fileInput.value = '';
+      if (inputRef.current) {
+        inputRef.current.value = '';
       }
 
       router.refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'An unexpected error occurred.'
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit proof for approval.'
       );
     } finally {
-      setUploading(false);
+      setBusy(false);
     }
   }
 
@@ -134,79 +190,93 @@ export default function AdminProofUpload({
         </h3>
 
         <p className="text-sm text-slate-600">
-          Upload a completed PDF proof and create a new
-          approval request for the author. Existing proof
-          decisions and feedback will remain in the
-          project history.
+          Upload a completed PDF proof for the author to
+          review. A new approval request will be created
+          while earlier decisions and feedback remain
+          available in the project history.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <label className="block space-y-2">
-          <span className="text-sm font-medium">
+      <form onSubmit={upload} className="space-y-5">
+        <div>
+          <label
+            htmlFor="admin-proof-title"
+            className="block text-sm font-medium mb-2"
+          >
             Proof title
-          </span>
+          </label>
 
           <input
+            id="admin-proof-title"
             type="text"
             value={proofLabel}
             onChange={(event) =>
               setProofLabel(event.target.value)
             }
             maxLength={255}
-            placeholder="Example: Interior Layout Proof — Round 1"
+            placeholder="Example: Interior Layout Proof - Round 1"
             required
-            disabled={uploading}
+            disabled={busy}
             className="w-full rounded-md border bg-white p-3 text-slate-900"
           />
-        </label>
+        </div>
 
-        <label className="block space-y-2">
-          <span className="text-sm font-medium">
+        <div>
+          <label
+            htmlFor="admin-proof-document"
+            className="block text-sm font-medium mb-2"
+          >
             PDF proof document
-          </span>
+          </label>
 
           <input
-            id="admin-proof-file"
+            id="admin-proof-document"
+            ref={inputRef}
             type="file"
             accept=".pdf,application/pdf"
-            onChange={(event) =>
-              setFile(event.target.files?.[0] || null)
-            }
             required
-            disabled={uploading}
+            disabled={busy}
+            onChange={(event) =>
+              setFile(event.target.files?.[0] ?? null)
+            }
             className="w-full rounded-md border bg-white p-3 text-slate-900"
           />
 
-          <span className="block text-xs text-slate-500">
+          <p className="text-sm text-slate-500 mt-2">
             PDF only. Maximum file size: 50 MB.
-          </span>
-        </label>
+          </p>
+        </div>
 
         <button
           type="submit"
+          className="btn"
           disabled={
-            uploading ||
+            busy ||
             !file ||
             !proofLabel.trim()
           }
-          className="rounded-md bg-slate-900 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {uploading
+          {busy
             ? 'Submitting Proof...'
             : 'Submit Proof for Approval'}
         </button>
       </form>
 
       {message && (
-        <p role="status" className="text-sm font-medium text-green-700">
+        <p
+          role="status"
+          className="text-sm font-medium text-green-700"
+        >
           {message}
         </p>
       )}
 
-      {error && (
-        <p role="alert" className="text-sm font-medium text-red-700">
-          {error}
+      {errorMessage && (
+        <p
+          role="alert"
+          className="text-sm font-medium text-red-700"
+        >
+          {errorMessage}
         </p>
       )}
     </div>
