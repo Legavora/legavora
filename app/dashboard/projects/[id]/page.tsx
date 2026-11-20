@@ -96,7 +96,7 @@ const productionStages = [
 
 type ProductionTask = {
   id: string;
-  stage_key: string;
+  task_type: string;
   status: string;
   due_date: string | null;
   notes: string | null;
@@ -186,7 +186,7 @@ export default async function Project({
     db
       .from('production_tasks')
       .select(
-        'id,stage_key,status,due_date,notes,updated_at'
+        'id,task_type,status,due_date,notes,updated_at'
       )
       .eq('project_id', id),
   ]);
@@ -201,7 +201,7 @@ export default async function Project({
   const taskMap = new Map<string, ProductionTask>();
 
   for (const task of (productionTasks || []) as ProductionTask[]) {
-    taskMap.set(task.stage_key, task);
+    taskMap.set(task.task_type, task);
   }
 
   const completedProductionStages =
