@@ -3,31 +3,22 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/supabase';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 const schema = z.object({
   project_id: z.string().uuid(),
-  previous_file_id: z.string().uuid(),
   storage_path: z.string().min(1),
   file_name: z.string().min(1).max(255),
   size_bytes: z.number().int().positive().max(MAX_FILE_SIZE),
-  revision_notes: z.string().trim().min(1).max(5000),
+  proof_label: z.string().trim().min(1).max(255),
 });
-
-const allowedExtensions = new Set([
-  'pdf',
-  'docx',
-  'epub',
-  'jpg',
-  'jpeg',
-  'png',
-]);
 
 export async function POST(request: Request) {
   try {
     const { db, user } = await requireUser();
 
-    // Verify administrator permissions.
     const { data: profile, error: profileError } = await db
       .from('profiles')
       .select('role')
@@ -49,7 +40,7 @@ export async function POST(request: Request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid revision information.' },
+        { error: 'Invalid proof information.' },
         { status: 400 }
       );
     }
@@ -61,36 +52,31 @@ export async function POST(request: Request) {
       .pop()
       ?.toLowerCase();
 
-    if (!extension || !allowedExtensions.has(extension)) {
+    if (extension !== 'pdf') {
       return NextResponse.json(
-        { error: 'Unsupported file format.' },
+        { error: 'Proof documents must be PDF files.' },
         { status: 400 }
       );
     }
 
-    // Validate the administrator's storage directory.
     const expectedPrefix = `${user.id}/${input.project_id}/`;
-
-    const storageFileName = input.storage_path.slice(
+    const storageName = input.storage_path.slice(
       expectedPrefix.length
     );
 
-    const expectedStorageName = new RegExp(
-      `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.${extension}$`,
-      'i'
-    );
+    const validStorageName =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pdf$/i;
 
     if (
       !input.storage_path.startsWith(expectedPrefix) ||
-      !expectedStorageName.test(storageFileName)
+      !validStorageName.test(storageName)
     ) {
       return NextResponse.json(
-        { error: 'Invalid storage location.' },
+        { error: 'Invalid proof storage location.' },
         { status: 400 }
       );
     }
 
-    // Confirm the publishing project exists.
     const { data: project, error: projectError } = await db
       .from('projects')
       .select('id')
@@ -104,23 +90,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Confirm the original file belongs to this project.
-    const { data: previous, error: previousError } = await db
-      .from('project_files')
-      .select('id, project_id, version_number')
-      .eq('id', input.previous_file_id)
-      .eq('project_id', input.project_id)
-      .single();
-
-    if (previousError || !previous) {
-      return NextResponse.json(
-        { error: 'Original file not found.' },
-        { status: 404 }
-      );
-    }
-
-    // Verify the uploaded object through Storage.
-    // Do not register a revision if the file is missing.
     const { data: storageFile, error: storageError } =
       await db.storage
         .from('manuscripts')
@@ -128,16 +97,11 @@ export async function POST(request: Request) {
 
     if (storageError || !storageFile) {
       return NextResponse.json(
-        {
-          error:
-            'Storage verification failed: ' +
-            (storageError?.message || 'File not found.'),
-        },
+        { error: 'Uploaded proof could not be verified.' },
         { status: 400 }
       );
     }
 
-    // Check the file size when Storage provides it.
     const actualSize = storageFile.metadata?.size;
 
     if (
@@ -145,17 +109,12 @@ export async function POST(request: Request) {
       Number(actualSize) !== input.size_bytes
     ) {
       return NextResponse.json(
-        { error: 'Uploaded file size does not match.' },
+        { error: 'Uploaded proof size does not match.' },
         { status: 400 }
       );
     }
 
-    // Calculate the next revision number.
-    const nextVersion =
-      (previous.version_number ?? 1) + 1;
-
-    // Save the revision without deleting the original.
-    const { data: revision, error: insertError } = await db
+    const { data: proof, error: fileError } = await db
       .from('project_files')
       .insert({
         project_id: input.project_id,
@@ -163,39 +122,57 @@ export async function POST(request: Request) {
         file_name: input.file_name,
         storage_path: input.storage_path,
         size_bytes: input.size_bytes,
-        previous_file_id: previous.id,
-        version_number: nextVersion,
-        revision_notes: input.revision_notes,
-        revised_at: new Date().toISOString(),
+        file_category: 'proof',
+        version_number: 1,
       })
-      .select('id, version_number')
+      .select('id')
       .single();
 
-    if (insertError || !revision) {
+    if (fileError || !proof) {
       return NextResponse.json(
         {
           error:
-            insertError?.message ||
-            'Unable to record revised file.',
+            fileError?.message ||
+            'Unable to register the proof file.',
         },
         { status: 400 }
       );
     }
 
+    const { data: approval, error: approvalError } = await db
+      .from('approvals')
+      .insert({
+        project_id: input.project_id,
+        file_id: proof.id,
+        label: input.proof_label,
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+
+    if (approvalError || !approval) {
+      return NextResponse.json(
+        {
+          error:
+            'The proof file was registered, but the approval ' +
+            'request could not be created. Please contact ' +
+            'an administrator before retrying.',
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       ok: true,
-      file_id: revision.id,
-      version_number: revision.version_number,
-      message: 'Revised file registered successfully.',
+      file_id: proof.id,
+      approval_id: approval.id,
+      message: 'Proof submitted for author review.',
     });
   } catch (error) {
+    console.error('Proof registration failed:', error);
+
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Unable to register revised file.',
-      },
+      { error: 'Unable to register proof for review.' },
       { status: 500 }
     );
   }
