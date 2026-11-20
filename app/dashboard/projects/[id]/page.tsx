@@ -209,6 +209,11 @@ export default async function Project({
       return taskMap.get(stage.key)?.status === 'completed';
     }).length;
 
+  const inProgressProductionStages =
+    productionStages.filter((stage) => {
+      return taskMap.get(stage.key)?.status === 'in_progress';
+    }).length;
+
   const productionProgress = Math.round(
     (completedProductionStages / productionStages.length) * 100
   );
@@ -329,6 +334,14 @@ export default async function Project({
               {completedProductionStages} of{' '}
               {productionStages.length} stages completed
             </p>
+
+            <p className="text-xs font-medium text-slate-700 mt-2">
+              {inProgressProductionStages}{' '}
+              {inProgressProductionStages === 1
+                ? 'stage'
+                : 'stages'}{' '}
+              in progress
+            </p>
           </div>
         </div>
 
@@ -345,6 +358,12 @@ export default async function Project({
             style={{ width: `${productionProgress}%` }}
           />
         </div>
+
+        <p className="text-sm text-slate-600">
+          Production completion is calculated from fully
+          completed stages. Stages currently in progress
+          are tracked separately.
+        </p>
 
         {productionError && (
           <p className="text-sm text-red-700" role="alert">
