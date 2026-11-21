@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-
 const SENDER_EMAIL = 'notifications@legavora.com';
 const TEAM_EMAIL = 'hello@legavora.com';
 
@@ -26,7 +25,7 @@ function escapeHtml(value: string) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;/g, '&quot;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
 
@@ -156,7 +155,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Avoid registering the same storage object twice.
     const { data: existingFile, error: lookupError } =
       await db
         .from('project_files')
@@ -184,7 +182,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Register the proof document.
     const { data: proof, error: fileError } = await db
       .from('project_files')
       .insert({
@@ -210,7 +207,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create the author's proof approval request.
     const { data: approval, error: approvalError } = await db
       .from('approvals')
       .insert({
@@ -239,8 +235,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // The proof and approval request now exist.
-    // Email failure must not undo either record.
     let notificationSent = false;
 
     try {
