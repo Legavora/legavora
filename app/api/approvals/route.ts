@@ -95,8 +95,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // The database function verifies project ownership,
-    // requires pending status, and records the decision.
     const { error: decisionError } = await db.rpc(
       'respond_to_proof',
       {
@@ -122,8 +120,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // The decision has been saved successfully.
-    // Email failure must never reverse the decision.
     let notificationSent = false;
 
     try {
@@ -134,6 +130,15 @@ export async function POST(req: Request) {
         process.env.NEXT_PUBLIC_SUPABASE_URL;
 
       if (!resendKey || !serviceKey || !supabaseUrl) {
+        console.error(
+          'Proof notification configuration:',
+          {
+            hasResendKey: Boolean(resendKey),
+            hasServiceKey: Boolean(serviceKey),
+            hasSupabaseUrl: Boolean(supabaseUrl),
+          }
+        );
+
         throw new Error(
           'Notification service configuration is missing.'
         );
@@ -150,9 +155,6 @@ export async function POST(req: Request) {
         }
       );
 
-      // Retrieve the saved approval and its project.
-      // This privileged client is used only on the server,
-      // after the authenticated decision succeeds.
       const {
         data: approval,
         error: approvalError,
@@ -165,6 +167,17 @@ export async function POST(req: Request) {
         .single();
 
       if (approvalError || !approval) {
+        console.error(
+          'Proof notification approval lookup failed:',
+          {
+            code: approvalError?.code,
+            message: approvalError?.message,
+            details: approvalError?.details,
+            hint: approvalError?.hint,
+            recordFound: Boolean(approval),
+          }
+        );
+
         throw new Error(
           'Saved approval details could not be retrieved.'
         );
@@ -190,6 +203,17 @@ export async function POST(req: Request) {
         !project ||
         project.author_id !== user.id
       ) {
+        console.error(
+          'Proof notification project lookup failed:',
+          {
+            code: projectError?.code,
+            message: projectError?.message,
+            details: projectError?.details,
+            hint: projectError?.hint,
+            recordFound: Boolean(project),
+          }
+        );
+
         throw new Error(
           'Project details could not be verified.'
         );
@@ -215,11 +239,8 @@ export async function POST(req: Request) {
       const feedback =
         approval.author_feedback || '';
 
-      const projectPath =
-        `/admin/projects/${project.id}#author-proof-decisions`;
-
       const dashboardUrl = new URL(
-        projectPath,
+        `/admin/projects/${project.id}#author-proof-decisions`,
         requestOrigin
       ).toString();
 
@@ -244,10 +265,7 @@ export async function POST(req: Request) {
           subject,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#14263d;">
-              <h2 style="color:#14263d;">
-                Legavora
-              </h2>
-
+              <h2 style="color:#14263d;">Legavora</h2>
               <h3>${escapeHtml(decisionTitle)}</h3>
 
               <p>
@@ -308,6 +326,11 @@ export async function POST(req: Request) {
         });
 
       if (emailError) {
+        console.error(
+          'Proof notification Resend failure:',
+          emailError.message
+        );
+
         throw new Error(emailError.message);
       }
 
