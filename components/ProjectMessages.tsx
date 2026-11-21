@@ -29,6 +29,10 @@ export default function ProjectMessages({
 }: ProjectMessagesProps) {
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [viewerRole, setViewerRole] = useState('');
+  const [authorId, setAuthorId] = useState<string | null>(null);
+  const [authorName, setAuthorName] = useState('Author');
+
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -36,6 +40,7 @@ export default function ProjectMessages({
   const [notice, setNotice] = useState('');
 
   const bottomRef = useRef<HTMLDivElement>(null);
+
   const dbRef = useRef<ReturnType<typeof browserDb> | null>(
     null
   );
@@ -45,6 +50,9 @@ export default function ProjectMessages({
   }
 
   const db = dbRef.current;
+
+  const isStaff =
+    viewerRole === 'admin' || viewerRole === 'manager';
 
   const loadMessages = useCallback(async () => {
     const { data, error: loadError } = await db
@@ -68,6 +76,12 @@ export default function ProjectMessages({
 
     async function initialize() {
       setLoading(true);
+      setError('');
+      setUserId(null);
+      setViewerRole('');
+      setAuthorId(null);
+      setAuthorName('Author');
+      setMessages([]);
 
       const {
         data: { user },
@@ -82,7 +96,71 @@ export default function ProjectMessages({
         return;
       }
 
+      const { data: profile, error: profileError } = await db
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!active) return;
+
+      if (profileError || !profile) {
+        setError('Unable to verify your account.');
+        setLoading(false);
+        return;
+      }
+
+      const { data: project, error: projectError } = await db
+        .from('projects')
+        .select('id,author_id')
+        .eq('id', projectId)
+        .single();
+
+      if (!active) return;
+
+      if (projectError || !project) {
+        setError('Unable to access this publishing project.');
+        setLoading(false);
+        return;
+      }
+
+      const role = profile.role;
+
+      if (
+        role !== 'author' &&
+        role !== 'admin' &&
+        role !== 'manager'
+      ) {
+        setError('You are not authorized to view project messages.');
+        setLoading(false);
+        return;
+      }
+
+      if (role === 'author' && project.author_id !== user.id) {
+        setError('You are not authorized to view this conversation.');
+        setLoading(false);
+        return;
+      }
+
       setUserId(user.id);
+      setViewerRole(role);
+      setAuthorId(project.author_id);
+
+      if (role === 'admin' || role === 'manager') {
+        const { data: authorProfile } = await db
+          .from('profiles')
+          .select('full_name')
+          .eq('id', project.author_id)
+          .single();
+
+        if (!active) return;
+
+        const name = authorProfile?.full_name?.trim();
+
+        if (name) {
+          setAuthorName(name);
+        }
+      }
 
       const { data, error: loadError } = await db
         .from('project_messages')
@@ -119,12 +197,28 @@ export default function ProjectMessages({
     }
   }, [messages.length, loading]);
 
-  async function sendMessage(event: FormEvent<HTMLFormElement>) {
+  function getSenderLabel(senderId: string) {
+    if (senderId === userId) {
+      return 'You';
+    }
+
+    if (authorId && senderId === authorId) {
+      return isStaff ? authorName : 'You';
+    }
+
+    return 'Legavora Publishing Team';
+  }
+
+  async function sendMessage(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     const message = draft.trim();
 
-    if (!userId || sending || !message) return;
+    if (!userId || sending || loading || !message) {
+      return;
+    }
 
     if (message.length > MAX_MESSAGE_LENGTH) {
       setError('Your message exceeds 10,000 characters.');
@@ -144,7 +238,9 @@ export default function ProjectMessages({
       });
 
     if (sendError) {
-      setError('Your message could not be sent. Please try again.');
+      setError(
+        'Your message could not be sent. Please try again.'
+      );
       setSending(false);
       return;
     }
@@ -181,9 +277,9 @@ export default function ProjectMessages({
         </h2>
 
         <p className="text-sm text-slate-600 mt-2">
-          Communicate securely with the Legavora publishing
-          team about this project. Messages are saved to your
-          project conversation.
+          Communicate securely about this publishing
+          project. Messages are saved to the project
+          conversation.
         </p>
       </div>
 
@@ -194,6 +290,10 @@ export default function ProjectMessages({
         {loading ? (
           <p className="text-sm text-slate-500">
             Loading conversation...
+          </p>
+        ) : error && !userId ? (
+          <p className="text-sm text-red-700">
+            Conversation unavailable.
           </p>
         ) : messages.length === 0 ? (
           <p className="text-sm text-slate-500">
@@ -207,7 +307,9 @@ export default function ProjectMessages({
               <div
                 key={item.id}
                 className={`flex ${
-                  isMine ? 'justify-end' : 'justify-start'
+                  isMine
+                    ? 'justify-end'
+                    : 'justify-start'
                 }`}
               >
                 <div
@@ -224,7 +326,7 @@ export default function ProjectMessages({
                         : 'text-[#a67c36]'
                     }`}
                   >
-                    {isMine ? 'You' : 'Project Team'}
+                    {getSenderLabel(item.sender_id)}
                   </p>
 
                   <p className="text-sm whitespace-pre-wrap break-words">
@@ -250,18 +352,27 @@ export default function ProjectMessages({
       </div>
 
       {error && (
-        <p className="text-sm text-red-700" role="alert">
+        <p
+          className="text-sm text-red-700"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
       {notice && (
-        <p className="text-sm text-green-700" role="status">
+        <p
+          className="text-sm text-green-700"
+          role="status"
+        >
           {notice}
         </p>
       )}
 
-      <form onSubmit={sendMessage} className="space-y-3">
+      <form
+        onSubmit={sendMessage}
+        className="space-y-3"
+      >
         <label
           htmlFor={`project-message-${projectId}`}
           className="block text-sm font-semibold"
@@ -272,8 +383,14 @@ export default function ProjectMessages({
         <textarea
           id={`project-message-${projectId}`}
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="Write your message to the publishing team..."
+          onChange={(event) =>
+            setDraft(event.target.value)
+          }
+          placeholder={
+            isStaff
+              ? 'Write your message to the author...'
+              : 'Write your message to the publishing team...'
+          }
           maxLength={MAX_MESSAGE_LENGTH}
           rows={4}
           disabled={loading || sending || !userId}
@@ -305,7 +422,9 @@ export default function ProjectMessages({
               }
               className="rounded-lg bg-[#14263d] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {sending ? 'Sending...' : 'Send Message'}
+              {sending
+                ? 'Sending...'
+                : 'Send Message'}
             </button>
           </div>
         </div>
