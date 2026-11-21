@@ -141,7 +141,9 @@ export default async function Project({
   const { id } = await params;
   const { db, user } = await currentUser();
 
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(`/dashboard/projects/${id}`)}`);
+  }
 
   const { data: profile } = await db
     .from('profiles')
@@ -511,7 +513,9 @@ export default async function Project({
 
       <ProjectActions projectId={id} />
 
-      <ProjectMessages projectId={id} />
+      <section id="project-messages" className="scroll-mt-24">
+        <ProjectMessages projectId={id} />
+      </section>
 
       <h2 className="heading text-3xl mt-12">
         Proof Approvals
