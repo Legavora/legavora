@@ -22,6 +22,13 @@ type ProjectMessagesProps = {
   projectId: string;
 };
 
+type SendMessageResponse = {
+  success?: boolean;
+  messageId?: string;
+  notificationSent?: boolean;
+  error?: string;
+};
+
 const MAX_MESSAGE_LENGTH = 10000;
 
 export default function ProjectMessages({
@@ -40,6 +47,7 @@ export default function ProjectMessages({
   const [notice, setNotice] = useState('');
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
 
   const dbRef = useRef<ReturnType<typeof browserDb> | null>(
     null
@@ -64,11 +72,12 @@ export default function ProjectMessages({
 
     if (loadError) {
       setError('Unable to load project messages.');
-      return;
+      return false;
     }
 
     setMessages((data || []) as ProjectMessage[]);
     setError('');
+    return true;
   }, [db, projectId]);
 
   useEffect(() => {
@@ -77,6 +86,7 @@ export default function ProjectMessages({
     async function initialize() {
       setLoading(true);
       setError('');
+      setNotice('');
       setUserId(null);
       setViewerRole('');
       setAuthorId(null);
@@ -131,13 +141,20 @@ export default function ProjectMessages({
         role !== 'admin' &&
         role !== 'manager'
       ) {
-        setError('You are not authorized to view project messages.');
+        setError(
+          'You are not authorized to view project messages.'
+        );
         setLoading(false);
         return;
       }
 
-      if (role === 'author' && project.author_id !== user.id) {
-        setError('You are not authorized to view this conversation.');
+      if (
+        role === 'author' &&
+        project.author_id !== user.id
+      ) {
+        setError(
+          'You are not authorized to view this conversation.'
+        );
         setLoading(false);
         return;
       }
@@ -216,7 +233,12 @@ export default function ProjectMessages({
 
     const message = draft.trim();
 
-    if (!userId || sending || loading || !message) {
+    if (
+      !userId ||
+      loading ||
+      sendingRef.current ||
+      !message
+    ) {
       return;
     }
 
@@ -225,31 +247,84 @@ export default function ProjectMessages({
       return;
     }
 
+    sendingRef.current = true;
     setSending(true);
     setError('');
     setNotice('');
 
-    const { error: sendError } = await db
-      .from('project_messages')
-      .insert({
-        project_id: projectId,
-        sender_id: userId,
-        message,
-      });
+    let response: Response;
 
-    if (sendError) {
+    try {
+      response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          projectId,
+          message,
+        }),
+      });
+    } catch {
       setError(
-        'Your message could not be sent. Please try again.'
+        'Unable to confirm whether your message was sent. ' +
+        'Refresh the conversation before trying again.'
       );
+      sendingRef.current = false;
       setSending(false);
       return;
     }
 
+    let result: SendMessageResponse = {};
+
+    try {
+      result = (await response.json()) as SendMessageResponse;
+    } catch {
+      setError(
+        'Unable to confirm the message result. ' +
+        'Refresh the conversation before trying again.'
+      );
+      sendingRef.current = false;
+      setSending(false);
+      return;
+    }
+
+    if (!response.ok || !result.success) {
+      setError(
+        result.error ||
+        'Your message could not be sent. Please try again.'
+      );
+      sendingRef.current = false;
+      setSending(false);
+      return;
+    }
+
+    // The server has confirmed the message was saved.
+    // Clear the draft even if email delivery failed.
     setDraft('');
-    setNotice('Message sent successfully.');
 
-    await loadMessages();
+    const refreshed = await loadMessages();
 
+    if (result.notificationSent === true) {
+      setNotice(
+        'Message sent successfully. Email notification sent.'
+      );
+    } else {
+      setNotice(
+        'Message saved successfully. The email notification ' +
+        'could not be confirmed.'
+      );
+    }
+
+    if (!refreshed) {
+      setError(
+        'Message saved, but the conversation could not refresh. ' +
+        'Please use Refresh to load it.'
+      );
+    }
+
+    sendingRef.current = false;
     setSending(false);
   }
 
