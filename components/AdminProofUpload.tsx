@@ -9,6 +9,14 @@ type Props = {
   projectId: string;
 };
 
+type SubmissionResult = {
+  ok?: boolean;
+  error?: string;
+  file_id?: string;
+  approval_id?: string;
+  notificationSent?: boolean;
+};
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 export default function AdminProofUpload({
@@ -16,19 +24,22 @@ export default function AdminProofUpload({
 }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
 
   const [file, setFile] = useState<File | null>(null);
   const [proofLabel, setProofLabel] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [warning, setWarning] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (busy) return;
+    if (submittingRef.current) return;
 
     setMessage('');
+    setWarning('');
     setErrorMessage('');
 
     if (!file) {
@@ -57,12 +68,12 @@ export default function AdminProofUpload({
       return;
     }
 
+    submittingRef.current = true;
     setBusy(true);
 
     try {
       const db = browserDb();
 
-      // Verify the signed-in user.
       const { data: authData, error: authError } =
         await db.auth.getUser();
 
@@ -74,7 +85,6 @@ export default function AdminProofUpload({
 
       const userId = authData.user.id;
 
-      // Confirm administrator or manager permissions.
       const { data: profile, error: profileError } =
         await db
           .from('profiles')
@@ -90,13 +100,11 @@ export default function AdminProofUpload({
         throw new Error('Administrator access required.');
       }
 
-      // Create a unique private storage location.
       const fileId = crypto.randomUUID();
 
       const storagePath =
         `${userId}/${projectId}/${fileId}.pdf`;
 
-      // Upload the PDF to Supabase Storage.
       const { error: uploadError } = await db.storage
         .from('manuscripts')
         .upload(storagePath, file, {
@@ -108,12 +116,12 @@ export default function AdminProofUpload({
         throw new Error(uploadError.message);
       }
 
-      // Register the proof and create its approval request.
       let response: Response;
 
       try {
         response = await fetch('/api/admin/proofs/submit', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -128,26 +136,20 @@ export default function AdminProofUpload({
       } catch {
         throw new Error(
           'The PDF was uploaded, but the approval request ' +
-          'could not be registered. Contact an administrator ' +
+          'could not be confirmed. Check the project records ' +
           'before trying again.'
         );
       }
 
-      const responseText = await response.text();
-
-      let result: {
-        ok?: boolean;
-        error?: string;
-        file_id?: string;
-        approval_id?: string;
-      } = {};
+      let result: SubmissionResult;
 
       try {
-        result = JSON.parse(responseText);
+        result = await response.json();
       } catch {
         throw new Error(
           'The server returned an unexpected response. ' +
-          'Please check the deployment logs before retrying.'
+          'Check the project records and deployment logs ' +
+          'before trying again.'
         );
       }
 
@@ -162,6 +164,21 @@ export default function AdminProofUpload({
         'Proof submitted successfully. ' +
         'An approval request has been created for the author.'
       );
+
+      if (result.notificationSent === true) {
+        setMessage(
+          'Proof submitted successfully. ' +
+          'Author approval request created and ' +
+          'email notification sent.'
+        );
+      } else {
+        setWarning(
+          'The proof and approval request were saved, ' +
+          'but the author email notification could not ' +
+          'be confirmed. Do not upload the proof again. ' +
+          'Check Resend or contact the author directly.'
+        );
+      }
 
       setFile(null);
       setProofLabel('');
@@ -178,6 +195,7 @@ export default function AdminProofUpload({
           : 'Unable to submit proof for approval.'
       );
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   }
@@ -268,6 +286,15 @@ export default function AdminProofUpload({
           className="text-sm font-medium text-green-700"
         >
           {message}
+        </p>
+      )}
+
+      {warning && (
+        <p
+          role="status"
+          className="text-sm font-medium text-amber-700"
+        >
+          {warning}
         </p>
       )}
 
