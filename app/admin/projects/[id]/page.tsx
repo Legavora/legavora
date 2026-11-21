@@ -5,6 +5,7 @@ import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
 import AdminRevisionUpload from '@/components/AdminRevisionUpload';
 import AdminProofUpload from '@/components/AdminProofUpload';
+import ProjectMessages from '@/components/ProjectMessages';
 
 export const dynamic = 'force-dynamic';
 
@@ -695,6 +696,9 @@ export default async function AdminProjectDetails({
           <p>No proof approval requests have been recorded for this project.</p>
         )}
       </section>
+
+      {/* PROJECT CONVERSATION */}
+      <ProjectMessages projectId={id} />
 
       {/* PROJECT INVOICES */}
       <section className="panel space-y-4">
