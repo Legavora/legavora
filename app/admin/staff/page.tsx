@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
+import StaffInvitationForm from '@/components/StaffInvitationForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,13 @@ type StaffInvitation = {
 function formatDate(value: string | null) {
   if (!value) return 'Not available';
 
-  return new Date(value).toLocaleDateString('en-GB', {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Not available';
+  }
+
+  return date.toLocaleDateString('en-GB', {
     timeZone: 'UTC',
     day: 'numeric',
     month: 'short',
@@ -96,7 +103,7 @@ export default async function StaffManagementPage() {
       </h1>
 
       <p className="text-slate-600 mt-3">
-        Manage Legavora's publishing operations team,
+        Manage Legavora&apos;s publishing operations team,
         review staff roles, and monitor staff invitations.
       </p>
 
@@ -142,6 +149,10 @@ export default async function StaffManagementPage() {
         </div>
       </section>
 
+      <section className="mt-10">
+        <StaffInvitationForm />
+      </section>
+
       <section className="mt-12">
         <h2 className="heading text-3xl">
           Registered Team Members
@@ -171,7 +182,8 @@ export default async function StaffManagementPage() {
                 <div className="flex flex-wrap justify-between gap-4">
                   <div>
                     <h3 className="font-serif text-xl">
-                      {member.full_name || 'Unnamed Team Member'}
+                      {member.full_name ||
+                        'Unnamed Team Member'}
                     </h3>
 
                     <p className="text-sm text-slate-600 mt-2">
@@ -226,7 +238,10 @@ export default async function StaffManagementPage() {
                   Date.now();
 
               return (
-                <article className="panel" key={invitation.id}>
+                <article
+                  className="panel"
+                  key={invitation.id}
+                >
                   <div className="flex flex-wrap justify-between gap-4">
                     <div>
                       <h3 className="font-semibold">
@@ -234,16 +249,26 @@ export default async function StaffManagementPage() {
                       </h3>
 
                       <p className="text-sm text-slate-600 mt-2">
-                        Invited as: {formatLabel(invitation.role)}
+                        Invited as:{' '}
+                        {formatLabel(invitation.role)}
                       </p>
 
                       <p className="text-sm text-slate-500 mt-2">
-                        Created: {formatDate(invitation.created_at)}
+                        Created:{' '}
+                        {formatDate(invitation.created_at)}
                       </p>
 
                       <p className="text-sm text-slate-500 mt-1">
-                        Expires: {formatDate(invitation.expires_at)}
+                        Expires:{' '}
+                        {formatDate(invitation.expires_at)}
                       </p>
+
+                      {invitation.accepted_at && (
+                        <p className="text-sm text-slate-500 mt-1">
+                          Accepted:{' '}
+                          {formatDate(invitation.accepted_at)}
+                        </p>
+                      )}
                     </div>
 
                     <div className="text-sm font-semibold text-slate-700">
