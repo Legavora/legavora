@@ -181,6 +181,11 @@ export default async function Admin() {
         <Link href="/admin/authors" className="btn">
           Manage Authors
         </Link>
+        {profile.role === 'admin' && (
+          <Link href="/admin/staff" className="btn">
+            Manage Staff
+          </Link>
+        )}
       </nav>
 
       {/* OPERATIONS OVERVIEW */}
