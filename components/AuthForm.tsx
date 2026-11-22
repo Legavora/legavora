@@ -18,7 +18,7 @@ function getSafeRedirect(next: string | null): string {
   // Only allow internal author project pages.
   // This prevents external or unsafe redirects.
   if (
-    /^\/dashboard\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(
+    /^\/dashboard\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(
       next
     )
   ) {
@@ -162,9 +162,21 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 : 'current-password'
             }
           />
+
+          {mode === 'login' && (
+            <div className="mt-3 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-[#a67c36] underline underline-offset-4"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+          )}
         </div>
 
         <button
+          type="submit"
           disabled={busy}
           className="btn w-full"
         >
