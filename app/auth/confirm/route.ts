@@ -1,6 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import {
+  createServerClient,
+  type CookieOptions,
+} from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, randomBytes } from 'node:crypto';
 
@@ -9,6 +12,12 @@ export const runtime = 'nodejs';
 
 const RECOVERY_COOKIE = 'legavora_recovery';
 const RECOVERY_TTL_SECONDS = 10 * 60;
+
+type CookieToSet = {
+  name: string;
+  value: string;
+  options?: CookieOptions;
+};
 
 function recoverySignature(
   payload: string,
@@ -58,10 +67,15 @@ export async function GET(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+
+        setAll(cookiesToSet: CookieToSet[]) {
           cookiesToSet.forEach(
             ({ name, value, options }) => {
-              response.cookies.set(name, value, options);
+              response.cookies.set(
+                name,
+                value,
+                options
+              );
             }
           );
         },
@@ -86,7 +100,8 @@ export async function GET(request: NextRequest) {
   });
 
   const expiresAt =
-    Math.floor(Date.now() / 1000) + RECOVERY_TTL_SECONDS;
+    Math.floor(Date.now() / 1000) +
+    RECOVERY_TTL_SECONDS;
 
   const nonce = randomBytes(16).toString('hex');
 
@@ -103,7 +118,6 @@ export async function GET(request: NextRequest) {
 
   const authorization = `${payload}.${signature}`;
 
-  // Store only a hash of the recovery authorization.
   const tokenHashForStorage = createHmac(
     'sha256',
     recoverySecret
