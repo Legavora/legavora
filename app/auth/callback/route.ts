@@ -14,17 +14,60 @@ type CookieToSet = {
   options?: CookieOptions;
 };
 
+const INVITATION_TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
+
+function getSafeInvitationRedirect(
+  next: string | null
+): string | null {
+  if (!next || !next.startsWith('/staff/accept-invitation?')) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(next, 'https://legavora.invalid');
+
+    if (
+      parsed.origin !== 'https://legavora.invalid' ||
+      parsed.pathname !== '/staff/accept-invitation' ||
+      parsed.searchParams.size !== 1
+    ) {
+      return null;
+    }
+
+    const token = parsed.searchParams.get('token');
+
+    if (!token || !INVITATION_TOKEN_PATTERN.test(token)) {
+      return null;
+    }
+
+    return (
+      '/staff/accept-invitation?token=' +
+      encodeURIComponent(token)
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
 
   const tokenHash = url.searchParams.get('token_hash');
   const type = url.searchParams.get('type');
 
+  const invitationRedirect = getSafeInvitationRedirect(
+    url.searchParams.get('next')
+  );
+
   const errorUrl = new URL('/login', url.origin);
   errorUrl.searchParams.set(
     'error',
     'email_confirmation_failed'
   );
+
+  if (invitationRedirect) {
+    errorUrl.searchParams.set('next', invitationRedirect);
+  }
 
   if (!tokenHash || type !== 'signup') {
     return NextResponse.redirect(errorUrl);
@@ -46,6 +89,13 @@ export async function GET(request: NextRequest) {
 
   const successUrl = new URL('/login', url.origin);
   successUrl.searchParams.set('confirmed', 'true');
+
+  if (invitationRedirect) {
+    successUrl.searchParams.set(
+      'next',
+      invitationRedirect
+    );
+  }
 
   const response = NextResponse.redirect(successUrl);
 
@@ -86,8 +136,6 @@ export async function GET(request: NextRequest) {
       error.message
     );
 
-    // Return the error redirect without forwarding
-    // authentication cookies from a failed verification.
     return NextResponse.redirect(errorUrl);
   }
 
