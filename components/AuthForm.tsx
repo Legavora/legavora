@@ -24,24 +24,25 @@ function getSafeRedirect(next: string | null): string {
     return next;
   }
 
-  // Only permit the exact staff invitation route
-  // with a valid token format.
   if (next.startsWith('/staff/accept-invitation?')) {
     try {
-      const url = new URL(next, 'https://legavora.invalid');
+      const url = new URL(
+        next,
+        'https://legavora.invalid'
+      );
+
+      const token = url.searchParams.get('token');
 
       if (
+        url.origin === 'https://legavora.invalid' &&
         url.pathname === '/staff/accept-invitation' &&
         url.searchParams.size === 1 &&
-        INVITATION_TOKEN.test(
-          url.searchParams.get('token') ?? ''
-        )
+        token &&
+        INVITATION_TOKEN.test(token)
       ) {
         return (
           '/staff/accept-invitation?token=' +
-          encodeURIComponent(
-            url.searchParams.get('token')!
-          )
+          encodeURIComponent(token)
         );
       }
     } catch {
@@ -67,13 +68,31 @@ export default function AuthForm({ mode }: AuthFormProps) {
   );
 
   const hasInvitation =
-    redirectTo.startsWith('/staff/accept-invitation?');
+    redirectTo.startsWith(
+      '/staff/accept-invitation?'
+    );
 
   const alternatePath =
     (mode === 'login' ? '/register' : '/login') +
     (hasInvitation
       ? '?next=' + encodeURIComponent(redirectTo)
       : '');
+
+  function getConfirmationRedirect(): string {
+    const callbackUrl = new URL(
+      '/auth/callback',
+      window.location.origin
+    );
+
+    if (hasInvitation) {
+      callbackUrl.searchParams.set(
+        'next',
+        redirectTo
+      );
+    }
+
+    return callbackUrl.toString();
+  }
 
   async function submit(
     event: React.FormEvent<HTMLFormElement>
@@ -93,6 +112,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           email: email.trim().toLowerCase(),
           password,
           options: {
+            emailRedirectTo: getConfirmationRedirect(),
             data: {
               full_name: name.trim(),
             },
@@ -110,13 +130,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
         }
 
         setMessage(
-          'Registration submitted. Please check your email to confirm your account. After confirmation, return to this page and sign in.'
+          'Registration submitted. Please check your email to confirm your account. After confirmation, sign in to continue.'
         );
       } else {
-        const { error } = await db.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
-          password,
-        });
+        const { error } =
+          await db.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+          });
 
         if (error) {
           throw error;
@@ -126,12 +147,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
         router.refresh();
       }
     } catch (error: unknown) {
-      const errorMessage =
+      setMessage(
         error instanceof Error
           ? error.message
-          : 'Something went wrong. Please try again.';
-
-      setMessage(errorMessage);
+          : 'Something went wrong. Please try again.'
+      );
     } finally {
       setBusy(false);
     }
@@ -155,10 +175,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
       {hasInvitation && (
         <p className="mt-4 text-sm text-slate-600">
-          Sign in or register using the email address
+          Register or sign in using the email address
           that received your Legavora staff invitation.
-          Your staff role will only be activated after
-          your invitation is accepted.
+          Your staff role will only be activated
+          after you accept the invitation.
         </p>
       )}
 
@@ -219,7 +239,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           <input
             id="auth-password"
             type="password"
-            minLength={8}
+            minLength={12}
             required
             value={password}
             onChange={(event) =>
