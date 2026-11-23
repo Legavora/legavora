@@ -17,26 +17,46 @@ type CookieToSet = {
 const INVITATION_TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 
 function getSafeInvitationRedirect(
-  next: string | null
+  value: string | null,
+  origin: string
 ): string | null {
-  if (!next || !next.startsWith('/staff/accept-invitation?')) {
-    return null;
-  }
+  if (!value) return null;
 
   try {
-    const parsed = new URL(next, 'https://legavora.invalid');
+    const parsed = new URL(value, origin);
+
+    // Only accept redirects belonging to this deployment.
+    if (parsed.origin !== origin) {
+      return null;
+    }
+
+    // The registration form sends the callback URL
+    // with an embedded staff invitation destination.
+    if (parsed.pathname !== '/auth/callback') {
+      return null;
+    }
+
+    const next = parsed.searchParams.get('next');
+
+    if (!next) return null;
+
+    const invitation = new URL(next, origin);
 
     if (
-      parsed.origin !== 'https://legavora.invalid' ||
-      parsed.pathname !== '/staff/accept-invitation' ||
-      parsed.searchParams.size !== 1
+      invitation.origin !== origin ||
+      invitation.pathname !==
+        '/staff/accept-invitation' ||
+      invitation.searchParams.size !== 1
     ) {
       return null;
     }
 
-    const token = parsed.searchParams.get('token');
+    const token = invitation.searchParams.get('token');
 
-    if (!token || !INVITATION_TOKEN_PATTERN.test(token)) {
+    if (
+      !token ||
+      !INVITATION_TOKEN_PATTERN.test(token)
+    ) {
       return null;
     }
 
@@ -56,7 +76,8 @@ export async function GET(request: NextRequest) {
   const type = url.searchParams.get('type');
 
   const invitationRedirect = getSafeInvitationRedirect(
-    url.searchParams.get('next')
+    url.searchParams.get('redirect_to'),
+    url.origin
   );
 
   const errorUrl = new URL('/login', url.origin);
@@ -66,7 +87,10 @@ export async function GET(request: NextRequest) {
   );
 
   if (invitationRedirect) {
-    errorUrl.searchParams.set('next', invitationRedirect);
+    errorUrl.searchParams.set(
+      'next',
+      invitationRedirect
+    );
   }
 
   if (!tokenHash || type !== 'signup') {
