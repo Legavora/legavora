@@ -1,4 +1,3 @@
-
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
@@ -6,6 +5,7 @@ import { currentUser } from '@/lib/supabase';
 import AdminRevisionUpload from '@/components/AdminRevisionUpload';
 import AdminProofUpload from '@/components/AdminProofUpload';
 import ProjectMessages from '@/components/ProjectMessages';
+import ProjectStaffAssignments from '@/components/ProjectStaffAssignments';
 
 export const dynamic = 'force-dynamic';
 
@@ -296,6 +296,9 @@ export default async function AdminProjectDetails({
           {formatDate(project.created_at)}
         </p>
       </section>
+
+      {/* PROJECT STAFF ASSIGNMENTS */}
+      <ProjectStaffAssignments projectId={id} />
 
       {/* PUBLISHING PRODUCTION MANAGEMENT */}
       <section className="panel space-y-6">
