@@ -10,19 +10,43 @@ type AuthFormProps = {
   mode: 'login' | 'register';
 };
 
+const PROJECT_PATH =
+  /^\/dashboard\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i;
+
+const INVITATION_TOKEN = /^[a-f0-9]{64}$/i;
+
 function getSafeRedirect(next: string | null): string {
   if (!next) {
     return '/dashboard';
   }
 
-  // Only allow internal author project pages.
-  // This prevents external or unsafe redirects.
-  if (
-    /^\/dashboard\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(
-      next
-    )
-  ) {
+  if (PROJECT_PATH.test(next)) {
     return next;
+  }
+
+  // Only permit the exact staff invitation route
+  // with a valid token format.
+  if (next.startsWith('/staff/accept-invitation?')) {
+    try {
+      const url = new URL(next, 'https://legavora.invalid');
+
+      if (
+        url.pathname === '/staff/accept-invitation' &&
+        url.searchParams.size === 1 &&
+        INVITATION_TOKEN.test(
+          url.searchParams.get('token') ?? ''
+        )
+      ) {
+        return (
+          '/staff/accept-invitation?token=' +
+          encodeURIComponent(
+            url.searchParams.get('token')!
+          )
+        );
+      }
+    } catch {
+      return '/dashboard';
+    }
   }
 
   return '/dashboard';
@@ -42,10 +66,21 @@ export default function AuthForm({ mode }: AuthFormProps) {
     searchParams.get('next')
   );
 
+  const hasInvitation =
+    redirectTo.startsWith('/staff/accept-invitation?');
+
+  const alternatePath =
+    (mode === 'login' ? '/register' : '/login') +
+    (hasInvitation
+      ? '?next=' + encodeURIComponent(redirectTo)
+      : '');
+
   async function submit(
     event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    if (busy) return;
 
     setBusy(true);
     setMessage('');
@@ -54,12 +89,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const db = browserDb();
 
       if (mode === 'register') {
-        const { error } = await db.auth.signUp({
-          email,
+        const { data, error } = await db.auth.signUp({
+          email: email.trim().toLowerCase(),
           password,
           options: {
             data: {
-              full_name: name,
+              full_name: name.trim(),
             },
           },
         });
@@ -68,12 +103,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
           throw error;
         }
 
+        if (data.session) {
+          router.push(redirectTo);
+          router.refresh();
+          return;
+        }
+
         setMessage(
-          'Registration submitted. Check your email to confirm your account, then sign in.'
+          'Registration submitted. Please check your email to confirm your account. After confirmation, return to this page and sign in.'
         );
       } else {
         const { error } = await db.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         });
 
@@ -88,7 +129,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : 'Something went wrong';
+          : 'Something went wrong. Please try again.';
 
       setMessage(errorMessage);
     } finally {
@@ -98,13 +139,28 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
   return (
     <div className="max-w-md mx-auto px-5 py-20">
-      <p className="eyebrow">AUTHOR WORKSPACE</p>
+      <p className="eyebrow">
+        {hasInvitation
+          ? 'LEGAVORA TEAM ONBOARDING'
+          : 'AUTHOR WORKSPACE'}
+      </p>
 
       <h1 className="heading text-4xl mt-3">
         {mode === 'login'
           ? 'Welcome back'
-          : 'Create your author account'}
+          : hasInvitation
+            ? 'Create your team account'
+            : 'Create your author account'}
       </h1>
+
+      {hasInvitation && (
+        <p className="mt-4 text-sm text-slate-600">
+          Sign in or register using the email address
+          that received your Legavora staff invitation.
+          Your staff role will only be activated after
+          your invitation is accepted.
+        </p>
+      )}
 
       <form
         onSubmit={submit}
@@ -112,12 +168,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
       >
         {mode === 'register' && (
           <div>
-            <label className="field">
+            <label
+              htmlFor="auth-name"
+              className="field"
+            >
               Full name
             </label>
 
             <input
+              id="auth-name"
               required
+              maxLength={250}
               value={name}
               onChange={(event) =>
                 setName(event.target.value)
@@ -128,11 +189,15 @@ export default function AuthForm({ mode }: AuthFormProps) {
         )}
 
         <div>
-          <label className="field">
+          <label
+            htmlFor="auth-email"
+            className="field"
+          >
             Email address
           </label>
 
           <input
+            id="auth-email"
             type="email"
             required
             value={email}
@@ -144,11 +209,15 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </div>
 
         <div>
-          <label className="field">
+          <label
+            htmlFor="auth-password"
+            className="field"
+          >
             Password
           </label>
 
           <input
+            id="auth-password"
             type="password"
             minLength={8}
             required
@@ -202,7 +271,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               New here?{' '}
               <Link
                 className="underline"
-                href="/register"
+                href={alternatePath}
               >
                 Register
               </Link>
@@ -212,13 +281,24 @@ export default function AuthForm({ mode }: AuthFormProps) {
               Already registered?{' '}
               <Link
                 className="underline"
-                href="/login"
+                href={alternatePath}
               >
                 Sign in
               </Link>
             </>
           )}
         </p>
+
+        {hasInvitation && (
+          <p className="text-sm text-slate-600">
+            <Link
+              href={redirectTo}
+              className="underline"
+            >
+              Return to Staff Invitation
+            </Link>
+          </p>
+        )}
       </form>
     </div>
   );
