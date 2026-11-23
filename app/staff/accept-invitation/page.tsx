@@ -4,11 +4,17 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { browserDb } from '@/lib/supabase-browser';
 
 type Invitation = {
   email: string;
   role: 'manager' | 'specialist';
   expires_at: string;
+};
+
+type AccountState = {
+  email: string;
+  confirmed: boolean;
 };
 
 function StaffInvitationContent() {
@@ -18,12 +24,17 @@ function StaffInvitationContent() {
   const [checking, setChecking] = useState(true);
   const [invitation, setInvitation] =
     useState<Invitation | null>(null);
+  const [account, setAccount] =
+    useState<AccountState | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
+  const [activating, setActivating] = useState(false);
+  const [activated, setActivated] = useState(false);
 
   useEffect(() => {
     let active = true;
 
-    async function checkInvitation() {
+    async function loadInvitation() {
       if (!token) {
         setErrorMessage(
           'This invitation link is missing its security token.'
@@ -47,8 +58,6 @@ function StaffInvitationContent() {
 
         const result = await response.json();
 
-        if (!active) return;
-
         if (!response.ok || !result.valid) {
           throw new Error(
             result.error ||
@@ -56,7 +65,30 @@ function StaffInvitationContent() {
           );
         }
 
+        const db = browserDb();
+
+        const {
+          data: { user },
+          error: authError,
+        } = await db.auth.getUser();
+
+        if (!active) return;
+
+        if (authError) {
+          console.error(
+            'Unable to check current account:',
+            authError
+          );
+        }
+
         setInvitation(result.invitation);
+
+        if (user) {
+          setAccount({
+            email: user.email ?? '',
+            confirmed: Boolean(user.email_confirmed_at),
+          });
+        }
       } catch (error: unknown) {
         if (!active) return;
 
@@ -70,7 +102,7 @@ function StaffInvitationContent() {
       }
     }
 
-    void checkInvitation();
+    void loadInvitation();
 
     return () => {
       active = false;
@@ -81,6 +113,70 @@ function StaffInvitationContent() {
     invitation?.role === 'manager'
       ? 'Publishing Manager'
       : 'Publishing Specialist';
+
+  const emailMatches =
+    Boolean(account && invitation) &&
+    account!.email.trim().toLowerCase() ===
+      invitation!.email.trim().toLowerCase();
+
+  const canActivate =
+    Boolean(account?.confirmed) &&
+    emailMatches &&
+    !activated;
+
+  async function activateAccount() {
+    if (!canActivate || activating) return;
+
+    setActivating(true);
+    setActionMessage('');
+
+    try {
+      const response = await fetch(
+        '/api/staff/invitations/accept',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ token }),
+          cache: 'no-store',
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error ||
+            'Unable to activate your staff account.'
+        );
+      }
+
+      setActivated(true);
+      setActionMessage(
+        'Your Legavora staff account has been activated successfully.'
+      );
+    } catch (error: unknown) {
+      setActionMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to activate your staff account.'
+      );
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  const returnPath =
+    '/staff/accept-invitation?token=' +
+    encodeURIComponent(token);
+
+  const loginPath =
+    '/login?next=' + encodeURIComponent(returnPath);
+
+  const registerPath =
+    '/register?next=' + encodeURIComponent(returnPath);
 
   return (
     <main className="max-w-xl mx-auto px-5 py-20">
@@ -104,10 +200,13 @@ function StaffInvitationContent() {
 
           <p className="text-sm text-slate-600">
             Please contact your Legavora administrator
-            to request a new invitation.
+            if you need a new invitation.
           </p>
 
-          <Link href="/" className="underline font-semibold">
+          <Link
+            href="/"
+            className="underline font-semibold"
+          >
             Return to Legavora
           </Link>
         </div>
@@ -128,16 +227,109 @@ function StaffInvitationContent() {
             </p>
           </div>
 
-          <p className="text-sm text-slate-600">
-            Your invitation has been verified.
-            Secure account activation will be available
-            once the staff onboarding process is enabled.
-          </p>
+          {activated ? (
+            <div className="space-y-4">
+              <p
+                role="status"
+                className="text-green-700 font-semibold"
+              >
+                {actionMessage}
+              </p>
 
-          <p className="text-sm text-slate-500">
-            This invitation does not grant staff access
-            until account activation is completed.
-          </p>
+              <Link
+                href="/dashboard"
+                className="btn inline-block"
+              >
+                Continue to Dashboard
+              </Link>
+            </div>
+          ) : !account ? (
+            <div className="space-y-4">
+              <p className="text-slate-700">
+                To accept this invitation, sign in or
+                create an account using the email
+                address shown above.
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <Link href={loginPath} className="btn">
+                  Sign In
+                </Link>
+
+                <Link
+                  href={registerPath}
+                  className="underline font-semibold self-center"
+                >
+                  Create Account
+                </Link>
+              </div>
+            </div>
+          ) : !emailMatches ? (
+            <div className="space-y-4">
+              <p role="alert" className="text-red-700">
+                You are currently signed in as
+                {' '}{account.email}.
+              </p>
+
+              <p className="text-sm text-slate-600">
+                This account does not match the invitation
+                email. Please sign out and sign in with
+                the invited email address.
+              </p>
+
+              <Link
+                href={loginPath}
+                className="underline font-semibold"
+              >
+                Go to Sign In
+              </Link>
+            </div>
+          ) : !account.confirmed ? (
+            <div className="space-y-4">
+              <p className="text-slate-700">
+                Your email address must be confirmed
+                before your staff account can be activated.
+              </p>
+
+              <p className="text-sm text-slate-600">
+                Please check your email for the
+                confirmation message, then return to
+                this invitation link.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-slate-700">
+                Your invitation has been verified and
+                your email address is confirmed.
+              </p>
+
+              <p className="text-sm text-slate-600">
+                Select the button below to activate
+                your Legavora staff account.
+              </p>
+
+              <button
+                type="button"
+                onClick={activateAccount}
+                disabled={activating}
+                className="btn w-full"
+              >
+                {activating
+                  ? 'Activating Account...'
+                  : 'Accept Invitation & Activate Account'}
+              </button>
+
+              {actionMessage && (
+                <p
+                  role="status"
+                  className="text-sm text-slate-700"
+                >
+                  {actionMessage}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       ) : null}
     </main>
@@ -149,7 +341,9 @@ export default function AcceptStaffInvitationPage() {
     <Suspense
       fallback={
         <main className="max-w-xl mx-auto px-5 py-20">
-          <p className="eyebrow">JOIN THE LEGAVORA TEAM</p>
+          <p className="eyebrow">
+            JOIN THE LEGAVORA TEAM
+          </p>
 
           <h1 className="heading text-4xl mt-3">
             Accept Your Invitation
