@@ -1,11 +1,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import {
+  createServerClient,
+  type CookieOptions,
+} from '@supabase/ssr';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+type CookieToSet = {
+  name: string;
+  value: string;
+  options?: CookieOptions;
+};
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
+
   const tokenHash = url.searchParams.get('token_hash');
   const type = url.searchParams.get('type');
 
@@ -29,14 +40,12 @@ export async function GET(request: NextRequest) {
     console.error(
       'Supabase email confirmation configuration is missing.'
     );
+
     return NextResponse.redirect(errorUrl);
   }
 
   const successUrl = new URL('/login', url.origin);
-  successUrl.searchParams.set(
-    'confirmed',
-    'true'
-  );
+  successUrl.searchParams.set('confirmed', 'true');
 
   const response = NextResponse.redirect(successUrl);
 
@@ -49,9 +58,11 @@ export async function GET(request: NextRequest) {
           return request.cookies.getAll();
         },
 
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           cookiesToSet.forEach(
             ({ name, value, options }) => {
+              request.cookies.set(name, value);
+
               response.cookies.set(
                 name,
                 value,
@@ -75,6 +86,8 @@ export async function GET(request: NextRequest) {
       error.message
     );
 
+    // Return the error redirect without forwarding
+    // authentication cookies from a failed verification.
     return NextResponse.redirect(errorUrl);
   }
 
