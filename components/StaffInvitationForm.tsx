@@ -13,6 +13,8 @@ type ApiResponse = {
   emailSent?: boolean;
 };
 
+type NoticeType = 'success' | 'warning' | 'error' | '';
+
 export default function StaffInvitationForm() {
   const router = useRouter();
   const sendingRef = useRef(false);
@@ -21,9 +23,13 @@ export default function StaffInvitationForm() {
   const [role, setRole] = useState<StaffRole>('specialist');
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState('');
-  const [noticeType, setNoticeType] = useState<
-    'success' | 'error' | ''
-  >('');
+  const [noticeType, setNoticeType] =
+    useState<NoticeType>('');
+
+  function clearNotice() {
+    setNotice('');
+    setNoticeType('');
+  }
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
@@ -42,40 +48,53 @@ export default function StaffInvitationForm() {
 
     sendingRef.current = true;
     setSending(true);
-    setNotice('');
-    setNoticeType('');
+    clearNotice();
 
     try {
-      const response = await fetch('/api/staff/invitations', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          role,
-        }),
-      });
+      const response = await fetch(
+        '/api/staff/invitations',
+        {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            role,
+          }),
+          cache: 'no-store',
+        }
+      );
 
-      const result: ApiResponse = await response.json();
+      const result: ApiResponse =
+        await response.json();
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error || 'Unable to create staff invitation.'
+          result.error ||
+            'Unable to create staff invitation.'
         );
       }
 
-      setEmail('');
-      setRole('specialist');
+      if (result.emailSent === true) {
+        setNotice(
+          `Invitation email sent successfully to ${normalizedEmail}. The recipient must verify their email and accept the invitation before receiving staff access.`
+        );
+        setNoticeType('success');
 
-      setNotice(
-        'Invitation record created successfully. Email delivery and account activation are not enabled yet.'
-      );
-      setNoticeType('success');
+        setEmail('');
+        setRole('specialist');
+      } else {
+        setNotice(
+          result.message ||
+            'The invitation record was created, but email delivery has not been confirmed. Check the invitation record and email delivery configuration before trying again.'
+        );
+        setNoticeType('warning');
+      }
 
       router.refresh();
-    } catch (error) {
+    } catch (error: unknown) {
       setNotice(
         error instanceof Error
           ? error.message
@@ -88,6 +107,13 @@ export default function StaffInvitationForm() {
     }
   }
 
+  const noticeClasses =
+    noticeType === 'success'
+      ? 'rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900'
+      : noticeType === 'warning'
+        ? 'rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900'
+        : 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900';
+
   return (
     <div className="panel">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -97,8 +123,9 @@ export default function StaffInvitationForm() {
           </h2>
 
           <p className="text-slate-600 mt-3">
-            Create an invitation for a publishing manager
-            or specialist to join the Legavora team.
+            Send a secure invitation to a publishing
+            manager or specialist to join the
+            Legavora team.
           </p>
         </div>
 
@@ -128,8 +155,7 @@ export default function StaffInvitationForm() {
             value={email}
             onChange={(event) => {
               setEmail(event.target.value);
-              setNotice('');
-              setNoticeType('');
+              clearNotice();
             }}
             placeholder="team.member@example.com"
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900"
@@ -149,9 +175,10 @@ export default function StaffInvitationForm() {
             id="staff-invitation-role"
             value={role}
             onChange={(event) => {
-              setRole(event.target.value as StaffRole);
-              setNotice('');
-              setNoticeType('');
+              setRole(
+                event.target.value as StaffRole
+              );
+              clearNotice();
             }}
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900"
             disabled={sending}
@@ -159,27 +186,26 @@ export default function StaffInvitationForm() {
             <option value="specialist">
               Publishing Specialist
             </option>
+
             <option value="manager">
               Publishing Manager
             </option>
           </select>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          This development version creates an invitation
-          record only. It does not send an email or grant
-          staff access.
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          Staff members receive an invitation by email.
+          Access is granted only after they sign in
+          with the invited email address, confirm
+          their email, and successfully accept
+          the invitation.
         </div>
 
         {notice && (
           <div
             role="status"
             aria-live="polite"
-            className={
-              noticeType === 'success'
-                ? 'rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900'
-                : 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900'
-            }
+            className={noticeClasses}
           >
             {notice}
           </div>
@@ -192,8 +218,8 @@ export default function StaffInvitationForm() {
             className="rounded-lg bg-[#101b33] px-6 py-3 font-semibold text-white disabled:opacity-60"
           >
             {sending
-              ? 'Creating Invitation...'
-              : 'Create Staff Invitation'}
+              ? 'Sending Invitation...'
+              : 'Send Staff Invitation'}
           </button>
         </div>
       </form>
