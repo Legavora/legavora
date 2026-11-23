@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -11,7 +11,7 @@ type Invitation = {
   expires_at: string;
 };
 
-export default function AcceptStaffInvitationPage() {
+function StaffInvitationContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
 
@@ -114,7 +114,7 @@ export default function AcceptStaffInvitationPage() {
       ) : invitation ? (
         <div className="panel mt-8 space-y-5">
           <p className="text-slate-700">
-            You've been invited to join Legavora as a
+            You&apos;ve been invited to join Legavora as a
             <strong> {roleName}</strong>.
           </p>
 
@@ -141,5 +141,29 @@ export default function AcceptStaffInvitationPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function AcceptStaffInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="max-w-xl mx-auto px-5 py-20">
+          <p className="eyebrow">JOIN THE LEGAVORA TEAM</p>
+
+          <h1 className="heading text-4xl mt-3">
+            Accept Your Invitation
+          </h1>
+
+          <div className="panel mt-8">
+            <p className="text-slate-600">
+              Loading invitation...
+            </p>
+          </div>
+        </main>
+      }
+    >
+      <StaffInvitationContent />
+    </Suspense>
   );
 }
