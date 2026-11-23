@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
+import AssignmentNotice from './AssignmentNotice';
 
 type Props = {
   projectId: string;
@@ -116,9 +117,7 @@ async function createAssignment(formData: FormData) {
 
   if (existing) {
     if (existing.status === 'active') {
-      throw new Error(
-        'This staff member already has this active assignment.'
-      );
+      redirect(`/admin/projects/${projectId}?assignment_notice=already_active`);
     }
 
     const { error } = await db
@@ -152,6 +151,7 @@ async function createAssignment(formData: FormData) {
 
   revalidatePath(`/admin/projects/${projectId}`);
   revalidatePath('/staff');
+  redirect(`/admin/projects/${projectId}?assignment_notice=assigned`);
 }
 
 async function updateAssignment(formData: FormData) {
@@ -192,6 +192,7 @@ async function updateAssignment(formData: FormData) {
 
   revalidatePath(`/admin/projects/${projectId}`);
   revalidatePath('/staff');
+  redirect(`/admin/projects/${projectId}?assignment_notice=updated`);
 }
 
 export default async function ProjectStaffAssignments({
@@ -237,6 +238,7 @@ export default async function ProjectStaffAssignments({
 
   return (
     <section className="panel space-y-6">
+      <AssignmentNotice />
       <div className="space-y-2">
         <p className="eyebrow">LEGAVORA TEAM OPERATIONS</p>
 
