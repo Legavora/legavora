@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createHash, randomBytes } from 'node:crypto';
 import { serverDb } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,15 @@ const ALLOWED_ROLES = ['manager', 'specialist'] as const;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function respond(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return NextResponse.json(
+    { error },
+    {
+      status,
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -94,6 +103,7 @@ export async function POST(request: NextRequest) {
 
     if (!supabaseUrl || !serviceKey) {
       console.error('Supabase administrator credentials missing.');
+
       return respond('Invitation service unavailable.', 503);
     }
 
@@ -104,8 +114,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Check existing accounts using server-only credentials.
-    // Paginate so accounts beyond the first page are checked.
+    // Check for an existing registered account.
     let page = 1;
     const perPage = 1000;
     let existingAccount = false;
@@ -118,6 +127,7 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         console.error('Account lookup failed:', error);
+
         return respond('Unable to verify existing accounts.', 500);
       }
 
@@ -145,6 +155,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for an existing pending invitation.
     const { data: pendingInvitation, error: lookupError } =
       await db
         .from('staff_invitations')
@@ -155,6 +166,7 @@ export async function POST(request: NextRequest) {
 
     if (lookupError) {
       console.error('Invitation lookup failed:', lookupError);
+
       return respond('Unable to check existing invitations.', 500);
     }
 
@@ -170,7 +182,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Expire the old invitation before creating another.
       const { data: expiredRecord, error: expireError } =
         await db
           .from('staff_invitations')
@@ -182,7 +193,11 @@ export async function POST(request: NextRequest) {
           .maybeSingle();
 
       if (expireError || !expiredRecord) {
-        console.error('Invitation expiration failed:', expireError);
+        console.error(
+          'Invitation expiration failed:',
+          expireError
+        );
+
         return respond(
           'Unable to expire the previous invitation. Please try again.',
           409
@@ -190,6 +205,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Generate a cryptographically secure invitation token.
+    // The token itself must never be stored in the database.
+    const invitationToken = randomBytes(32).toString('hex');
+
+    const tokenHash = createHash('sha256')
+      .update(invitationToken)
+      .digest('hex');
+
+    // The token will be delivered through a secure email link
+    // once the complete staff activation process is enabled.
+    // For now, only its hash is stored.
     const { data: invitation, error: insertError } = await db
       .from('staff_invitations')
       .insert({
@@ -197,12 +223,18 @@ export async function POST(request: NextRequest) {
         role,
         status: 'pending',
         invited_by: user.id,
+        token_hash: tokenHash,
       })
-      .select('id,email,role,status,created_at,expires_at')
+      .select(
+        'id,email,role,status,created_at,expires_at'
+      )
       .single();
 
     if (insertError || !invitation) {
-      console.error('Staff invitation creation failed:', insertError);
+      console.error(
+        'Staff invitation creation failed:',
+        insertError
+      );
 
       if (insertError?.code === '23505') {
         return respond(
@@ -220,12 +252,18 @@ export async function POST(request: NextRequest) {
         invitation,
         emailSent: false,
         message:
-          'Invitation record created successfully. Email delivery is not enabled yet.',
+          'Secure invitation record created. Email delivery and account activation are not enabled yet.',
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
     );
   } catch (error) {
     console.error('Staff invitation endpoint failed:', error);
+
     return respond('Unable to process staff invitation.', 500);
   }
 }
