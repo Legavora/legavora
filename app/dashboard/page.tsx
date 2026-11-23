@@ -40,8 +40,15 @@ export default async function Dashboard() {
     redirect('/admin');
   }
 
+  if (
+    profile.role === 'manager' ||
+    profile.role === 'specialist'
+  ) {
+    redirect('/staff');
+  }
+
   if (profile.role !== 'author') {
-    throw new Error('This workspace is for authors only.');
+    redirect('/');
   }
 
   const [
@@ -120,7 +127,6 @@ export default async function Dashboard() {
         <Logout />
       </div>
 
-      {/* WORKSPACE OVERVIEW */}
       <div className="grid md:grid-cols-3 gap-5 mt-10">
         <div className="panel">
           <p className="text-slate-500">
@@ -157,7 +163,6 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      {/* PUBLISHING PROJECTS */}
       <div className="flex justify-between items-center mt-12">
         <h2 className="heading text-3xl">
           Publishing projects
@@ -200,7 +205,6 @@ export default async function Dashboard() {
         )}
       </div>
 
-      {/* EDITORIAL REVISION REQUESTS */}
       <section className="mt-12">
         <div className="space-y-2">
           <h2 className="heading text-3xl">
@@ -279,7 +283,6 @@ export default async function Dashboard() {
         </div>
       </section>
 
-      {/* INVOICES */}
       <h2 className="heading text-3xl mt-12">
         Invoices
       </h2>
