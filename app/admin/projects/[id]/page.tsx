@@ -6,6 +6,7 @@ import AdminRevisionUpload from '@/components/AdminRevisionUpload';
 import AdminProofUpload from '@/components/AdminProofUpload';
 import ProjectMessages from '@/components/ProjectMessages';
 import ProjectStaffAssignments from '@/components/ProjectStaffAssignments';
+import ManagementDeliverableReview from '@/components/ManagementDeliverableReview';
 
 export const dynamic = 'force-dynamic';
 
@@ -231,6 +232,59 @@ export default async function AdminProjectDetails({
     );
   }
 
+  const { data: deliverables, error: deliverablesError } = await db
+    .from('staff_deliverables')
+    .select('id,assignment_id,submitted_by,file_name,storage_path,size_bytes,submission_notes,status,management_feedback,created_at,reviewed_at')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
+
+  if (deliverablesError) {
+    throw new Error('Unable to load staff deliverables');
+  }
+
+  const submissions = deliverables || [];
+  const specialistIds = Array.from(new Set(submissions.map((item) => item.submitted_by)));
+  const assignmentIds = Array.from(new Set(submissions.map((item) => item.assignment_id)));
+  const specialistNames = new Map<string, string>();
+  const assignmentRoles = new Map<string, string>();
+
+  if (specialistIds.length) {
+    const { data: specialists, error } = await db
+      .from('profiles')
+      .select('id,full_name')
+      .in('id', specialistIds);
+    if (error) throw new Error('Unable to load deliverable specialists');
+    for (const specialist of specialists || []) {
+      specialistNames.set(specialist.id, specialist.full_name || 'Legavora Specialist');
+    }
+  }
+
+  if (assignmentIds.length) {
+    const { data: assignments, error } = await db
+      .from('project_assignments')
+      .select('id,assignment_role')
+      .eq('project_id', id)
+      .in('id', assignmentIds);
+    if (error) throw new Error('Unable to load deliverable assignments');
+    for (const assignment of assignments || []) {
+      assignmentRoles.set(assignment.id, assignment.assignment_role);
+    }
+  }
+
+  const managementDeliverables = submissions.map((item) => ({
+    id: item.id,
+    file_name: item.file_name,
+    storage_path: item.storage_path,
+    size_bytes: Number(item.size_bytes),
+    submission_notes: item.submission_notes,
+    status: item.status,
+    management_feedback: item.management_feedback,
+    created_at: item.created_at,
+    reviewed_at: item.reviewed_at,
+    specialist_name: specialistNames.get(item.submitted_by) || 'Legavora Specialist',
+    assignment_role: assignmentRoles.get(item.assignment_id) || 'specialist',
+  }));
+
   const tasksByType = new Map(
     (productionTasks || []).map((task) => [
       task.task_type,
@@ -300,6 +354,9 @@ export default async function AdminProjectDetails({
 
       {/* PROJECT STAFF ASSIGNMENTS */}
       <ProjectStaffAssignments projectId={id} />
+
+      {/* STAFF PRODUCTION DELIVERABLES */}
+      <ManagementDeliverableReview deliverables={managementDeliverables} />
 
       {/* PUBLISHING PRODUCTION MANAGEMENT */}
       <section className="panel space-y-6">
