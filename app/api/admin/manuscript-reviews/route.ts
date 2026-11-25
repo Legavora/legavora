@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { requireUser } from '@/lib/supabase';
+import { currentUser } from '@/lib/supabase';
 import { z } from 'zod';
 
 const reviewSchema = z.object({
@@ -22,9 +22,17 @@ const reviewSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const { db, user } = await requireUser();
+    const { db, user } = await currentUser();
 
-    // Verify administrator permissions.
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required.' },
+        { status: 401 }
+      );
+    }
+
+    // Only administrators and managers can issue
+    // official editorial decisions.
     const { data: profile, error: profileError } =
       await db
         .from('profiles')
@@ -38,15 +46,13 @@ export async function POST(request: Request) {
       !['admin', 'manager'].includes(profile.role)
     ) {
       return NextResponse.json(
-        { error: 'Administrator access required.' },
+        { error: 'Management access required.' },
         { status: 403 }
       );
     }
 
-    // Validate the submitted review.
-    const parsed = reviewSchema.safeParse(
-      await request.json()
-    );
+    const body = await request.json().catch(() => null);
+    const parsed = reviewSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -57,7 +63,7 @@ export async function POST(request: Request) {
 
     const input = parsed.data;
 
-    // Confirm the publishing project exists.
+    // Verify the publishing project.
     const { data: project, error: projectError } =
       await db
         .from('projects')
@@ -72,11 +78,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Confirm the document belongs to this project.
+    // Verify that the document belongs to this
+    // project and is a manuscript.
     const { data: file, error: fileError } =
       await db
         .from('project_files')
-        .select('id,project_id')
+        .select('id,project_id,file_category')
         .eq('id', input.file_id)
         .eq('project_id', input.project_id)
         .single();
@@ -88,8 +95,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Record the review using the authenticated
-    // administrator's identity.
+    if (file.file_category !== 'manuscript') {
+      return NextResponse.json(
+        {
+          error:
+            'Editorial decisions can only be issued for manuscript files.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Create a separate official editorial decision.
+    // Existing internal specialist reviews remain private
+    // and are never modified or automatically published.
     const { data: review, error: insertError } =
       await db
         .from('manuscript_reviews')
@@ -99,18 +117,22 @@ export async function POST(request: Request) {
           reviewer_id: user.id,
           decision: input.decision,
           review_notes: input.review_notes,
+          visibility: 'author_visible',
         })
-        .select('id,decision,created_at')
+        .select('id,decision,visibility,created_at')
         .single();
 
     if (insertError || !review) {
+      console.error(
+        'Official editorial review insert failed:',
+        insertError
+      );
+
       return NextResponse.json(
         {
-          error:
-            insertError?.message ||
-            'Unable to save manuscript review.',
+          error: 'Unable to save official editorial decision.',
         },
-        { status: 400 }
+        { status: 500 }
       );
     }
 
@@ -119,18 +141,22 @@ export async function POST(request: Request) {
         ok: true,
         review_id: review.id,
         decision: review.decision,
+        visibility: review.visibility,
         created_at: review.created_at,
-        message: 'Editorial review saved successfully.',
+        message:
+          'Official editorial decision published successfully.',
       },
       { status: 201 }
     );
   } catch (error) {
+    console.error(
+      'Management editorial review error:',
+      error
+    );
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Unable to process manuscript review.',
+        error: 'Unable to process manuscript review.',
       },
       { status: 500 }
     );
