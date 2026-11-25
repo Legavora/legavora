@@ -19,6 +19,7 @@ type ReviewRecord = {
   reviewer_id: string;
   decision: string;
   review_notes: string;
+  visibility: string;
   created_at: string;
 };
 
@@ -195,7 +196,7 @@ export default async function AdminProjectDetails({
   const { data: reviews, error: reviewsError } = await db
     .from('manuscript_reviews')
     .select(
-      'id,file_id,reviewer_id,decision,review_notes,created_at'
+      'id,file_id,reviewer_id,decision,review_notes,visibility,created_at'
     )
     .eq('project_id', id)
     .order('created_at', {
@@ -447,7 +448,8 @@ export default async function AdminProjectDetails({
                 (review) => review.file_id === file.id
               );
 
-              const latestReview = fileReviews[0];
+              const latestReview = fileReviews.find((review) => review.visibility === 'author_visible');
+              const internalReviews = fileReviews.filter((review) => review.visibility === 'internal');
 
               return (
                 <div
@@ -504,7 +506,7 @@ export default async function AdminProjectDetails({
                       <>
                         <p className="text-sm">
                           <strong>
-                            Latest Decision:
+                            Latest Author-Visible Decision:
                           </strong>{' '}
                           {format(latestReview.decision)}
                         </p>
@@ -522,11 +524,24 @@ export default async function AdminProjectDetails({
                       </>
                     ) : (
                       <p className="text-sm text-slate-600">
-                        This file has not yet received
-                        an editorial review.
+                        No author-visible editorial decision has been recorded.
                       </p>
                     )}
 
+                    {internalReviews.length > 0 && (
+                      <div className="rounded-md border bg-slate-50 p-4 space-y-3">
+                        <h4 className="font-semibold">Internal Specialist Recommendations</h4>
+                        {internalReviews.map((review) => (
+                          <article key={review.id} className="border-b pb-3 space-y-2">
+                            <p className="text-sm font-semibold">{format(review.decision)} · {formatDate(review.created_at)}</p>
+                            <p className="text-sm whitespace-pre-wrap break-words">{review.review_notes}</p>
+                          </article>
+                        ))}
+                        <p className="text-xs text-slate-600">Internal notes are not author feedback. Use the manuscript review workspace to prepare a separate official decision.</p>
+                      </div>
+                    )}
+
+                    {file.file_category === 'manuscript' && (
                     <Link
                       href={`/admin/projects/${encodeURIComponent(
                         id
@@ -535,8 +550,9 @@ export default async function AdminProjectDetails({
                       )}`}
                       className="inline-block text-sm font-semibold underline"
                     >
-                      Open Manuscript Review
+                      Open Official Editorial Review
                     </Link>
+                    )}
                   </div>
                 </div>
               );
@@ -578,8 +594,7 @@ export default async function AdminProjectDetails({
         <h2>Editorial Review History</h2>
 
         <p className="text-sm text-slate-600">
-          A record of Legavora's editorial decisions
-          and feedback for this publishing project.
+          Internal recommendations and author-visible editorial decisions are recorded separately below.
         </p>
 
         {reviewHistory.length ? (
@@ -594,6 +609,9 @@ export default async function AdminProjectDetails({
                     'Project file'}
                 </p>
 
+                <p className="text-sm">
+                  <strong>Visibility:</strong> {format(review.visibility)}
+                </p>
                 <p className="text-sm">
                   <strong>Decision:</strong>{' '}
                   {format(review.decision)}
