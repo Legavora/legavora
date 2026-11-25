@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { currentUser } from '@/lib/supabase';
+import StaffDeliverableUpload from '@/components/StaffDeliverableUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -319,6 +320,16 @@ export default async function StaffProjectPage({
     reviewsUnavailable = Boolean(error);
     if (!error) reviews = (data || []) as ManuscriptReview[];
   }
+
+  const canSubmitDeliverables = profile.role === 'specialist' && assignments.some(
+    (assignment) => ['editor', 'proofreader', 'formatter', 'cover_designer', 'publishing_specialist'].includes(assignment.assignment_role)
+  );
+  const deliverableResult = canSubmitDeliverables
+    ? await db.from('staff_deliverables')
+        .select('id,assignment_id,file_name,size_bytes,submission_notes,status,management_feedback,created_at')
+        .eq('project_id', projectId).eq('submitted_by', user.id)
+        .order('created_at', { ascending: false })
+    : null;
 
   const documentGroups = [
     {
@@ -712,6 +723,31 @@ export default async function StaffProjectPage({
         </section>
       )}
 
+      {canSubmitDeliverables && (
+        <section className="mt-12 space-y-5">
+          <h2 className="heading text-3xl">Production Deliverables</h2>
+          <div className="panel">
+            <StaffDeliverableUpload projectId={projectId} assignments={assignments} />
+          </div>
+          <div className="panel space-y-4">
+            <h3 className="heading text-2xl">My Deliverable History</h3>
+            {deliverableResult?.error ? (
+              <p role="alert">Deliverable history is temporarily unavailable.</p>
+            ) : !deliverableResult?.data?.length ? (
+              <p>No deliverables submitted yet.</p>
+            ) : deliverableResult.data.map((item) => (
+              <article key={item.id} className="rounded-lg border p-5 space-y-2">
+                <h4 className="font-semibold break-all">{item.file_name}</h4>
+                <p className="text-sm">{readable(item.status)} · {fileSize(item.size_bytes)} · {dateLabel(item.created_at)}</p>
+                <p className="text-sm">Assignment: {readable(assignments.find((a) => a.id === item.assignment_id)?.assignment_role || 'specialist')}</p>
+                <p className="text-sm whitespace-pre-wrap break-words">{item.submission_notes}</p>
+                {item.management_feedback && <div className="border-t pt-3"><p className="font-semibold text-sm">Management Feedback</p><p className="text-sm whitespace-pre-wrap break-words">{item.management_feedback}</p></div>}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="panel mt-10">
         <h2 className="heading text-2xl">
           Publishing Workflow
@@ -723,9 +759,9 @@ export default async function StaffProjectPage({
           account. Authorized project documents are
           available through the secure document library.
           Editorial review submissions are available to eligible
-          specialists. Deliverable uploads, task completion,
-          and project communication will be introduced in
-          subsequent stages.
+          specialists. Eligible specialists can submit confidential production
+          deliverables for management review. Task completion and project
+          communication remain separate workflows.
         </p>
       </section>
     </main>
