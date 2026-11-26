@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import ProjectActions from '@/components/ProjectActions';
 import ApprovalButton from '@/components/ApprovalButton';
 import ProjectMessages from '@/components/ProjectMessages';
+import AuthorContractResponse from '@/components/AuthorContractResponse';
 
 export const dynamic = 'force-dynamic';
 
@@ -197,7 +198,7 @@ export default async function Project({
   const contractIds = (contracts ?? []).map((contract) => contract.id);
   const { data: versions, error: versionsError } = contractIds.length
     ? await db.from('contract_versions')
-        .select('id,contract_id,version_number,file_name,storage_path,status,issued_at')
+        .select('id,contract_id,version_number,file_name,storage_path,status,issued_at,document_sha256')
         .in('contract_id', contractIds)
         .not('issued_at', 'is', null)
         .neq('status', 'draft')
@@ -565,7 +566,19 @@ export default async function Project({
                       <p role="alert" className="text-sm text-red-700">Download unavailable. Refresh the page to try again.</p>
                     )}
                     {version.status === 'awaiting_acceptance' && (
-                      <p className="text-sm text-slate-600">This agreement is awaiting your review. Online acceptance is not yet available.</p>
+                      version.downloadUrl && /^[0-9a-f]{64}$/.test(version.document_sha256) ? (
+                        <AuthorContractResponse
+                          contractVersionId={version.id}
+                          contractTitle={contract.title}
+                          versionNumber={version.version_number}
+                          documentSha256={version.document_sha256}
+                          status={version.status}
+                        />
+                      ) : (
+                        <p role="alert" className="text-sm text-red-700">
+                          Agreement response is unavailable until the document can be accessed and its fingerprint is available. Please refresh and try again.
+                        </p>
+                      )
                     )}
                   </div>
                 ))}
