@@ -606,6 +606,19 @@ export default async function Project({
                             <p className="text-xs text-slate-600 break-all font-mono">SHA-256: {response.document_sha256}</p>
                           </div>
                           {consentRecorded && <div className="border-t pt-3 text-sm"><p className="font-medium">Recorded acceptance statement</p><p className="mt-2 whitespace-pre-wrap break-words">{response.acceptance_statement}</p></div>}
+                          {accepted && consentRecorded && fingerprintMatches && (
+                            <div className="border-t pt-4">
+                              <a
+                                href={`/api/contracts/${encodeURIComponent(version.id)}/certificate`}
+                                className="inline-flex items-center justify-center rounded-lg border border-[#cba45b] bg-white px-4 py-3 text-sm font-semibold text-[#876329] hover:bg-amber-50"
+                              >
+                                Download Acceptance Certificate (PDF)
+                              </a>
+                              <p className="mt-2 text-xs text-slate-600">
+                                Retain this certificate together with the corresponding agreement document.
+                              </p>
+                            </div>
+                          )}
                           {response.response_notes && <div className="border-t pt-3 text-sm"><p className="font-medium">Your response notes</p><p className="mt-2 whitespace-pre-wrap break-words">{response.response_notes}</p></div>}
                         </section>
                       );
