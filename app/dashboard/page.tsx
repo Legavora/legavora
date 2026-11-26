@@ -21,6 +21,15 @@ function readable(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 export default async function Dashboard() {
   const { db, user } = await currentUser();
 
@@ -64,7 +73,7 @@ export default async function Dashboard() {
     db
       .from('invoices')
       .select(
-        'id,amount_cents,currency,status,description'
+        'id,amount_cents,currency,status,description,invoice_number,due_date,paid_at,created_at,project_id'
       )
       .eq('author_id', user.id)
       .order('created_at', { ascending: false }),
@@ -91,6 +100,7 @@ export default async function Dashboard() {
         )
         .in('project_id', projectIds)
         .eq('decision', 'revision_requested')
+        .eq('visibility', 'author_visible')
         .order('created_at', { ascending: false });
 
     if (reviewsError) {
@@ -234,17 +244,7 @@ export default async function Dashboard() {
 
                     <p className="text-sm text-slate-600 mt-1">
                       Requested:{' '}
-                      {new Date(
-                        review.created_at
-                      ).toLocaleDateString(
-                        'en-GB',
-                        {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          timeZone: 'UTC',
-                        }
-                      )}
+                      {formatDate(review.created_at)}
                     </p>
                   </div>
 
@@ -283,66 +283,189 @@ export default async function Dashboard() {
         </div>
       </section>
 
-      <h2 className="heading text-3xl mt-12">
-        Invoices
-      </h2>
+      {/* AUTHOR FINANCIAL DOCUMENTS */}
 
-      <div className="grid gap-3 mt-5">
-        {invoices?.length ? (
-          invoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              className="panel flex justify-between flex-wrap items-center gap-3"
-            >
-              <div>
-                <p className="font-semibold">
-                  {invoice.description ||
-                    'Publishing services'}
-                </p>
+      <section className="mt-12 space-y-5">
+        <div className="space-y-2">
+          <h2 className="heading text-3xl">
+            Invoices and Payment Receipts
+          </h2>
 
-                <p className="text-sm text-slate-600">
-                  {readable(invoice.status)}
-                  {' · '}
-                  {invoice.currency}
-                </p>
-              </div>
+          <p className="text-slate-600">
+            View your publishing invoices, track
+            payment status and download your
+            financial documents.
+          </p>
+        </div>
 
-              <div className="flex items-center gap-4">
-                <b>
-                  {invoice.currency}{' '}
-                  {(
-                    invoice.amount_cents / 100
-                  ).toFixed(2)}
-                </b>
+        <div className="grid gap-4">
+          {invoices?.length ? (
+            invoices.map((invoice) => (
+              <article
+                key={invoice.id}
+                className="panel space-y-5"
+              >
+                <div className="flex flex-wrap justify-between items-start gap-4">
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-widest text-slate-500">
+                      {invoice.invoice_number ||
+                        'Service Invoice'}
+                    </p>
 
-                {invoice.status === 'pending' && (
-                  <form
-                    action="/api/paystack/initialize"
-                    method="POST"
-                  >
-                    <input
-                      type="hidden"
-                      name="invoice_id"
-                      value={invoice.id}
-                    />
+                    <h3 className="font-serif text-xl break-words">
+                      {invoice.description ||
+                        'Publishing services'}
+                    </h3>
 
-                    <button
-                      type="submit"
-                      className="btn"
+                    {invoice.project_id && (
+                      <p className="text-sm text-slate-600">
+                        Project:{' '}
+                        {projectNames.get(
+                          invoice.project_id
+                        ) || 'Publishing Project'}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-2xl font-semibold">
+                      {invoice.currency}{' '}
+                      {(
+                        invoice.amount_cents / 100
+                      ).toFixed(2)}
+                    </p>
+
+                    <span
+                      className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                        invoice.status === 'paid'
+                          ? 'bg-green-100 text-green-800'
+                          : invoice.status === 'pending'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}
                     >
-                      Pay Invoice
-                    </button>
-                  </form>
-                )}
-              </div>
+                      {readable(invoice.status)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 rounded-lg border bg-slate-50 p-4">
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Invoice Issue Date
+                    </p>
+
+                    <p className="text-sm font-semibold mt-1">
+                      {formatDate(invoice.created_at)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Payment Due Date
+                    </p>
+
+                    <p className="text-sm font-semibold mt-1">
+                      {invoice.due_date
+                        ? formatDate(invoice.due_date)
+                        : 'Not specified'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Payment Confirmation
+                    </p>
+
+                    <p className="text-sm font-semibold mt-1">
+                      {invoice.status === 'paid' &&
+                      invoice.paid_at
+                        ? formatDate(invoice.paid_at)
+                        : 'Not applicable'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+                  <a
+                    href={`/api/invoices/download?id=${encodeURIComponent(
+                      invoice.id
+                    )}&type=invoice`}
+                    className="rounded-lg border px-4 py-3 text-sm font-semibold hover:bg-slate-50"
+                  >
+                    Download Invoice (PDF)
+                  </a>
+
+                  {invoice.status === 'paid' &&
+                    invoice.paid_at && (
+                      <a
+                        href={`/api/invoices/download?id=${encodeURIComponent(
+                          invoice.id
+                        )}&type=receipt`}
+                        className="rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700"
+                      >
+                        Download Receipt (PDF)
+                      </a>
+                    )}
+
+                  {invoice.status === 'pending' && (
+                    <form
+                      action="/api/paystack/initialize"
+                      method="POST"
+                    >
+                      <input
+                        type="hidden"
+                        name="invoice_id"
+                        value={invoice.id}
+                      />
+
+                      <button
+                        type="submit"
+                        className="btn"
+                      >
+                        Pay Invoice
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {invoice.status === 'paid' &&
+                  invoice.paid_at && (
+                    <p className="text-sm text-green-700">
+                      Your payment has been recorded.
+                      Your payment receipt is available
+                      for download.
+                    </p>
+                  )}
+              </article>
+            ))
+          ) : (
+            <div className="panel">
+              No invoices have been issued to your
+              account yet.
             </div>
-          ))
-        ) : (
-          <div className="panel">
-            No invoices yet.
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border p-5 space-y-2">
+          <h3 className="font-semibold">
+            Financial Support
+          </h3>
+
+          <p className="text-sm text-slate-600">
+            For questions about invoices, payment
+            arrangements or financial documents,
+            please contact our support team.
+          </p>
+
+          <a
+            href="mailto:hello@legavora.com"
+            className="text-sm font-semibold underline"
+          >
+            hello@legavora.com
+          </a>
+        </div>
+      </section>
     </div>
   );
 }
