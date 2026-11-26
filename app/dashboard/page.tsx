@@ -31,6 +31,7 @@ function formatDate(value: string) {
 }
 
 export default async function Dashboard() {
+  const paymentsEnabled = process.env.PAYMENTS_ENABLED === 'true';
   const { db, user } = await currentUser();
 
   if (!user) redirect('/login');
@@ -408,7 +409,7 @@ export default async function Dashboard() {
                       </a>
                     )}
 
-                  {invoice.status === 'pending' && (
+                  {invoice.status === 'pending' && paymentsEnabled && (
                     <form
                       action="/api/paystack/initialize"
                       method="POST"
@@ -428,6 +429,16 @@ export default async function Dashboard() {
                     </form>
                   )}
                 </div>
+
+                {invoice.status === 'pending' && !paymentsEnabled && (
+                  <p className="text-sm text-slate-600">
+                    Online payments are currently unavailable. Please contact{' '}
+                    <a href="mailto:hello@legavora.com" className="font-semibold underline">
+                      hello@legavora.com
+                    </a>{' '}
+                    for payment arrangements.
+                  </p>
+                )}
 
                 {invoice.status === 'paid' &&
                   invoice.paid_at && (
