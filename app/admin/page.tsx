@@ -4,6 +4,7 @@ import { currentUser } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import AdminTools from '@/components/AdminTools';
 import InvoiceManager from '@/components/InvoiceManager';
+import NotificationBell from '@/components/NotificationBell';
 
 export const dynamic = 'force-dynamic';
 
@@ -163,18 +164,23 @@ export default async function Admin() {
 
   return (
     <main className="max-w-7xl mx-auto px-5 py-16">
-      <p className="eyebrow">
-        LEGAVORA OPERATIONS
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div>
+          <p className="eyebrow">
+            LEGAVORA OPERATIONS
+          </p>
 
-      <h1 className="heading text-4xl mt-3">
-        Administration
-      </h1>
+          <h1 className="heading text-4xl mt-3">
+            Administration
+          </h1>
 
-      <p className="text-slate-600 mt-3">
-        Manage authors, publishing projects, invoices,
-        approvals, and distribution operations.
-      </p>
+          <p className="text-slate-600 mt-3">
+            Manage authors, publishing projects, invoices,
+            approvals, and distribution operations.
+          </p>
+        </div>
+        <NotificationBell />
+      </div>
 
       {/* ADMINISTRATOR NAVIGATION */}
       <nav className="flex flex-wrap gap-4 mt-8">
