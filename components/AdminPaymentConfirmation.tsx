@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { browserDb } from '@/lib/supabase-browser';
 
 type Props = {
@@ -18,8 +17,6 @@ export default function AdminPaymentConfirmation({
   amountCents,
   status,
 }: Props) {
-  const router = useRouter();
-
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState('bank_transfer');
   const [reference, setReference] = useState('');
@@ -34,12 +31,18 @@ export default function AdminPaymentConfirmation({
   ) {
     event.preventDefault();
 
-    if (loading || success || status !== 'pending') return;
+    if (
+      loading ||
+      success ||
+      status !== 'pending'
+    ) return;
 
     setError('');
 
     if (!verified) {
-      setError('Confirm that the full payment has been received.');
+      setError(
+        'Confirm that the full payment has been received.'
+      );
       return;
     }
 
@@ -80,7 +83,8 @@ export default function AdminPaymentConfirmation({
 
       setSuccess(true);
       setOpen(false);
-      router.refresh();
+
+      window.location.reload();
 
     } catch (err) {
       setError(
@@ -88,7 +92,7 @@ export default function AdminPaymentConfirmation({
           ? err.message
           : 'Unable to confirm payment.'
       );
-    } finally {
+
       setLoading(false);
     }
   }
@@ -100,6 +104,7 @@ export default function AdminPaymentConfirmation({
         className="rounded-lg bg-green-50 p-3 text-sm text-green-700"
       >
         Payment confirmed successfully.
+        Refreshing invoice status...
       </p>
     );
   }
@@ -152,7 +157,9 @@ export default function AdminPaymentConfirmation({
 
         <select
           value={method}
-          onChange={(event) => setMethod(event.target.value)}
+          onChange={(event) =>
+            setMethod(event.target.value)
+          }
           disabled={loading}
           className="w-full rounded-lg border bg-white p-3 text-slate-900"
         >
@@ -178,7 +185,9 @@ export default function AdminPaymentConfirmation({
         <input
           type="text"
           value={reference}
-          onChange={(event) => setReference(event.target.value)}
+          onChange={(event) =>
+            setReference(event.target.value)
+          }
           maxLength={200}
           minLength={3}
           placeholder="Enter verified transaction reference"
@@ -195,7 +204,9 @@ export default function AdminPaymentConfirmation({
 
         <textarea
           value={notes}
-          onChange={(event) => setNotes(event.target.value)}
+          onChange={(event) =>
+            setNotes(event.target.value)
+          }
           maxLength={2000}
           rows={4}
           placeholder="Record how the payment was verified. Do not include sensitive banking information."
@@ -209,7 +220,9 @@ export default function AdminPaymentConfirmation({
         <input
           type="checkbox"
           checked={verified}
-          onChange={(event) => setVerified(event.target.checked)}
+          onChange={(event) =>
+            setVerified(event.target.checked)
+          }
           required
           disabled={loading}
           className="mt-1"
@@ -233,7 +246,7 @@ export default function AdminPaymentConfirmation({
       <div className="flex flex-wrap gap-3">
         <button
           type="submit"
-          disabled={loading || !verified}
+          disabled={loading || !verified || success}
           className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           {loading
