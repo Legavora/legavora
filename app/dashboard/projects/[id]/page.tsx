@@ -187,6 +187,29 @@ export default async function Project({
       .eq('project_id', id),
   ]);
 
+  const { data: contracts, error: contractsError } = await db
+    .from('contracts')
+    .select('id,title,contract_type')
+    .eq('project_id', id)
+    .eq('author_id', user.id)
+    .order('created_at', { ascending: false });
+
+  const contractIds = (contracts ?? []).map((contract) => contract.id);
+  const { data: versions, error: versionsError } = contractIds.length
+    ? await db.from('contract_versions')
+        .select('id,contract_id,version_number,file_name,storage_path,status,issued_at')
+        .in('contract_id', contractIds)
+        .not('issued_at', 'is', null)
+        .neq('status', 'draft')
+        .order('version_number', { ascending: false })
+    : { data: [], error: null };
+
+  const issuedVersions = await Promise.all((versions ?? []).map(async (version) => {
+    const { data, error } = await db.storage.from('contracts')
+      .createSignedUrl(version.storage_path, 300, { download: version.file_name });
+    return { ...version, downloadUrl: error ? null : data?.signedUrl ?? null };
+  }));
+
   if (productionError) {
     console.error(
       'Unable to load production progress:',
@@ -503,6 +526,55 @@ export default async function Project({
           </p>
         </div>
       </div>
+
+      <section className="panel mt-8 space-y-5" aria-labelledby="contracts-heading">
+        <div>
+          <p className="eyebrow">LEGAVORA AGREEMENTS</p>
+          <h2 id="contracts-heading" className="font-serif text-2xl mt-2">
+            Your Publishing Agreements
+          </h2>
+          <p className="text-sm text-slate-600 mt-2">
+            Review and download agreements officially issued to you by Legavora.
+          </p>
+        </div>
+        {contractsError || versionsError ? (
+          <p role="alert" className="text-sm text-red-700">
+            Agreements are temporarily unavailable. Please refresh and try again.
+          </p>
+        ) : issuedVersions.length === 0 ? (
+          <p className="text-sm text-slate-600">No agreements have been issued to you for this project.</p>
+        ) : (
+          <div className="space-y-4">
+            {(contracts ?? []).filter((contract) => issuedVersions.some((v) => v.contract_id === contract.id)).map((contract) => (
+              <article key={contract.id} className="rounded-xl border border-slate-200 p-5 space-y-4">
+                <h3 className="font-semibold text-lg">{contract.title}</h3>
+                <p className="text-sm text-slate-600">{formatLabel(contract.contract_type)}</p>
+                {issuedVersions.filter((version) => version.contract_id === contract.id).map((version) => (
+                  <div key={version.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="font-semibold">Version {version.version_number}</p>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800">{formatLabel(version.status)}</span>
+                    </div>
+                    <p className="text-sm break-all">{version.file_name}</p>
+                    <p className="text-sm text-slate-600">Issued: {formatDate(version.issued_at)}</p>
+                    {version.downloadUrl ? (
+                      <a href={version.downloadUrl} referrerPolicy="no-referrer" className="inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50">
+                        Download Agreement (PDF)
+                      </a>
+                    ) : (
+                      <p role="alert" className="text-sm text-red-700">Download unavailable. Refresh the page to try again.</p>
+                    )}
+                    {version.status === 'awaiting_acceptance' && (
+                      <p className="text-sm text-slate-600">This agreement is awaiting your review. Online acceptance is not yet available.</p>
+                    )}
+                  </div>
+                ))}
+              </article>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-slate-500">Download links expire after five minutes. Refresh this page to obtain a new link.</p>
+      </section>
 
       <ProjectActions projectId={id} />
 
