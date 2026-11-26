@@ -65,34 +65,13 @@ const publishingStages = [
 ];
 
 const productionStages = [
-  {
-    key: 'interior_formatting',
-    label: 'Interior Formatting and Layout',
-  },
-  {
-    key: 'cover_design',
-    label: 'Cover Design',
-  },
-  {
-    key: 'ebook_conversion',
-    label: 'eBook Conversion',
-  },
-  {
-    key: 'proof_preparation',
-    label: 'Proof Preparation',
-  },
-  {
-    key: 'quality_assurance',
-    label: 'Quality Assurance',
-  },
-  {
-    key: 'distribution_setup',
-    label: 'Distribution Setup',
-  },
-  {
-    key: 'publication',
-    label: 'Publication',
-  },
+  { key: 'interior_formatting', label: 'Interior Formatting and Layout' },
+  { key: 'cover_design', label: 'Cover Design' },
+  { key: 'proofreading', label: 'Proofreading' },
+  { key: 'quality_control', label: 'Quality Control' },
+  { key: 'author_proof_approval', label: 'Author Proof Approval' },
+  { key: 'final_production_approval', label: 'Final Production Approval' },
+  { key: 'distribution_preparation', label: 'Distribution Preparation' },
 ];
 
 type ProductionTask = {
@@ -106,6 +85,7 @@ type ProductionTask = {
 
 function formatLabel(value: string | null | undefined) {
   if (!value) return 'Not specified';
+  if (value === 'ebook') return 'eBook';
 
   return value
     .replaceAll('_', ' ')
@@ -131,6 +111,18 @@ function formatDate(value: string | null | undefined) {
     year: 'numeric',
     timeZone: 'UTC',
   });
+}
+
+function safeRetailerUrl(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export default async function Project({
@@ -167,7 +159,7 @@ export default async function Project({
   const [
     { data: files },
     { data: approvals },
-    { data: distribution },
+    { data: distribution, error: distributionError },
     { data: productionTasks, error: productionError },
   ] = await Promise.all([
     db
@@ -183,8 +175,9 @@ export default async function Project({
 
     db
       .from('distribution_records')
-      .select('platform,status,retailer_url')
-      .eq('project_id', id),
+      .select('id,platform,book_format,status,isbn,external_identifier,retailer_url,submitted_at,published_at,updated_at')
+      .eq('project_id', id)
+      .order('updated_at', { ascending: false }),
 
     db
       .from('production_tasks')
@@ -564,48 +557,60 @@ export default async function Project({
         )}
       </div>
 
-      <h2 className="heading text-3xl mt-12">
-        Distribution Tracking
-      </h2>
-
-      <div className="grid gap-3 mt-4">
-        {distribution?.length ? (
-          distribution.map((record, index) => (
-            <div
-              className="panel flex justify-between flex-wrap gap-4"
-              key={index}
-            >
-              <div>
-                <p className="font-semibold">
-                  {record.platform}
-                </p>
-
-                <p className="text-sm text-slate-500 mt-1">
-                  {formatLabel(record.status)}
-                </p>
-              </div>
-
-              {record.retailer_url &&
-                /^https:\/\//.test(record.retailer_url) && (
-                  <a
-                    href={record.retailer_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-[#a67c36]"
-                  >
-                    View Retailer Listing
-                  </a>
-                )}
-            </div>
-          ))
+      <section className="mt-12 space-y-4" aria-labelledby="distribution-heading">
+        <h2 id="distribution-heading" className="heading text-3xl">
+          Distribution Tracking
+        </h2>
+        <p className="text-sm text-slate-600">
+          Follow the publishing progress of each book format and platform.
+          Distribution updates are managed by Legavora.
+        </p>
+        {distributionError ? (
+          <div className="panel text-sm text-red-700" role="alert">
+            Distribution updates are temporarily unavailable. Please check again later.
+          </div>
+        ) : distribution?.length ? (
+          <div className="grid gap-4">
+            {distribution.map((record) => {
+              const url = safeRetailerUrl(record.retailer_url);
+              return (
+                <article key={record.id} className="panel space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{record.platform}</h3>
+                      <p className="text-sm text-slate-600 mt-1">
+                        {formatLabel(record.book_format)}
+                      </p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${record.status === 'live' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
+                      {formatLabel(record.status)}
+                    </span>
+                  </div>
+                  <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                    <div><dt className="text-slate-500">ISBN</dt><dd className="break-all">{record.isbn || 'Not assigned'}</dd></div>
+                    <div><dt className="text-slate-500">ASIN / External Identifier</dt><dd className="break-all">{record.external_identifier || 'Not assigned'}</dd></div>
+                    <div><dt className="text-slate-500">Submission Date</dt><dd>{formatDate(record.submitted_at)}</dd></div>
+                    <div><dt className="text-slate-500">Publication Date</dt><dd>{formatDate(record.published_at)}</dd></div>
+                  </dl>
+                  {record.status === 'live' && url && (
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block font-semibold underline text-[#a67c36]">
+                      View Retailer Listing
+                    </a>
+                  )}
+                  <p className="text-xs text-slate-500">Last updated: {formatDate(record.updated_at)}</p>
+                </article>
+              );
+            })}
+          </div>
         ) : (
           <div className="panel">
-            Distribution information will appear here
-            when your project reaches the relevant
-            publishing stage.
+            Distribution information will appear here when Legavora adds publishing updates for your project.
           </div>
         )}
-      </div>
+        <p className="text-xs text-slate-500">
+          This tracker is read-only. It records distribution progress and does not process publishing submissions or author royalties.
+        </p>
+      </section>
     </div>
   );
 }
