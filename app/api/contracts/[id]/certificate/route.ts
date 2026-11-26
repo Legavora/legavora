@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { currentUser } from '@/lib/supabase';
@@ -147,16 +149,17 @@ export async function GET(
       StandardFonts.Courier
     );
 
-    const navy = rgb(0.06, 0.12, 0.21);
-    const gold = rgb(0.67, 0.48, 0.23);
+    const logo = await pdf.embedPng(await readFile(path.join(process.cwd(), 'public', 'legavora-logo.png')));
+    const navy = rgb(0.07, 0.13, 0.23);
+    const gold = rgb(0.78, 0.62, 0.32);
     const slate = rgb(0.29, 0.35, 0.43);
     const green = rgb(0.08, 0.40, 0.25);
     const pale = rgb(0.95, 0.97, 0.98);
-    const white = rgb(1, 1, 1);
+    
 
     const width = 595.28;
     const height = 841.89;
-    const margin = 46;
+    const margin = 45;
     const contentWidth = width - margin * 2;
 
     // Standard PDF fonts have limited character coverage.
@@ -178,63 +181,36 @@ export async function GET(
     }
 
     let page = pdf.addPage([width, height]);
-    let y = height - 150;
+    let y = height - 175;
 
     function decoratePage(continuation = false) {
-      page.drawRectangle({
-        x: 0,
-        y: height - 112,
-        width,
-        height: 112,
-        color: navy,
+      const watermark = logo.scaleToFit(410, 360);
+      page.drawImage(logo, {
+        x: (width - watermark.width) / 2,
+        y: (height - watermark.height) / 2,
+        ...watermark,
+        opacity: 0.07,
       });
-
-      page.drawRectangle({
-        x: 0,
-        y: height - 116,
-        width,
-        height: 4,
-        color: gold,
-      });
-
-      page.drawText('LEGAVORA', {
-        x: margin,
-        y: height - 44,
-        size: 27,
-        font: bold,
-        color: white,
-      });
-
-      page.drawText('GLOBAL SERVICES LTD', {
-        x: margin,
-        y: height - 65,
-        size: 10,
-        font: bold,
-        color: white,
-      });
-
-      page.drawText(
-        continuation
-          ? 'AGREEMENT ACCEPTANCE RECORD - CONTINUED'
-          : 'PUBLISHING, MARKETING & AUTHOR GROWTH',
-        {
-          x: margin,
-          y: height - 87,
-          size: 8,
-          font: regular,
-          color: white,
-        }
-      );
+      page.drawRectangle({ x: 0, y: height - 8, width, height: 8, color: navy });
+      page.drawRectangle({ x: 0, y: height - 11, width, height: 3, color: gold });
+      const mark = logo.scaleToFit(170, 105);
+      page.drawImage(logo, { x: margin, y: height - 132, ...mark });
+      function right(text: string, baseline: number, size: number, font = bold) {
+        page.drawText(text, { x: width - margin - font.widthOfTextAtSize(text, size), y: baseline, size, font, color: navy });
+      }
+      right('AGREEMENT ACCEPTANCE', height - 52, 17);
+      right(continuation ? 'CERTIFICATE - CONTINUED' : 'CERTIFICATE', height - 74, 17);
+      right('STATUS: ACCEPTED', height - 101, 10);
+      page.drawLine({ start: { x: margin, y: height - 148 }, end: { x: width - margin, y: height - 148 }, thickness: 1.5, color: gold });
     }
 
     decoratePage();
 
     function ensureSpace(required: number) {
-      if (y - required >= 90) return;
-
+      if (y - required >= 95) return;
       page = pdf.addPage([width, height]);
       decoratePage(true);
-      y = height - 150;
+      y = height - 175;
     }
 
     function wrapText(
@@ -284,195 +260,75 @@ export async function GET(
       return lines;
     }
 
-    function paragraph(
-      value: string,
-      size = 10,
-      color = slate
-    ) {
-      const lines = wrapText(
-        value,
-        size,
-        contentWidth
-      );
-
-      for (const line of lines) {
-        ensureSpace(size + 8);
-
-        page.drawText(line, {
-          x: margin,
-          y,
-          size,
-          font: regular,
-          color,
-        });
-
-        y -= size + 5;
+    function paragraph(value: string, size = 10, color = slate) {
+      for (const line of wrapText(value, size, contentWidth)) {
+        ensureSpace(size + 3);
+        page.drawText(line, { x: margin, y, size, font: regular, color });
+        y -= size + 3;
       }
-
-      y -= 6;
+      y -= 5;
     }
 
     function field(label: string, value: string) {
-      ensureSpace(48);
+      ensureSpace(32);
+      page.drawText(label.toUpperCase(), { x: margin, y, size: 8, font: bold, color: slate });
+      y -= 14;
+      paragraph(value, 10, navy);
+      y -= 3;
+    }
 
-      page.drawText(label.toUpperCase(), {
-        x: margin,
-        y,
-        size: 8,
-        font: bold,
-        color: slate,
-      });
-
-      y -= 17;
-
-      paragraph(value, 11, navy);
-      y -= 7;
+    function pair(leftLabel: string, leftValue: string, rightLabel: string, rightValue: string) {
+      const gap = 20;
+      const column = (contentWidth - gap) / 2;
+      const left = wrapText(leftValue, 10, column);
+      const right = wrapText(rightValue, 10, column);
+      const count = Math.max(left.length, right.length);
+      if (count > 12) {
+        field(leftLabel, leftValue);
+        field(rightLabel, rightValue);
+        return;
+      }
+      ensureSpace(18 + count * 13);
+      for (const [label, lines, x] of [[leftLabel, left, margin], [rightLabel, right, margin + column + gap]] as const) {
+        page.drawText(label.toUpperCase(), { x, y, size: 8, font: bold, color: slate });
+        lines.forEach((line, index) => page.drawText(line, { x, y: y - 14 - index * 13, size: 10, font: regular, color: navy }));
+      }
+      y -= 22 + count * 13;
     }
 
     function section(title: string) {
-      ensureSpace(50);
-
-      page.drawRectangle({
-        x: margin,
-        y: y - 9,
-        width: contentWidth,
-        height: 25,
-        color: pale,
-      });
-
-      page.drawText(title, {
-        x: margin + 10,
-        y,
-        size: 11,
-        font: bold,
-        color: navy,
-      });
-
-      y -= 30;
+      ensureSpace(42);
+      page.drawRectangle({ x: margin, y: y - 6, width: contentWidth, height: 20, color: pale });
+      page.drawText(title, { x: margin + 8, y, size: 10, font: bold, color: navy });
+      y -= 24;
     }
 
-    page.drawText('Agreement Acceptance', {
-      x: margin,
-      y,
-      size: 25,
-      font: bold,
-      color: navy,
-    });
-
-    y -= 29;
-
-    page.drawText('Certificate', {
-      x: margin,
-      y,
-      size: 25,
-      font: bold,
-      color: navy,
-    });
-
-    y -= 30;
-
-    paragraph(
-      'This certificate documents an electronic agreement acceptance recorded through the Legavora Publishing Platform.'
-    );
-
-    y -= 8;
-
-    page.drawRectangle({
-      x: margin,
-      y: y - 12,
-      width: contentWidth,
-      height: 29,
-      color: rgb(0.91, 0.97, 0.93),
-    });
-
-    page.drawText('STATUS: ACCEPTED', {
-      x: margin + 12,
-      y,
-      size: 11,
-      font: bold,
-      color: green,
-    });
-
-    y -= 35;
-
+    paragraph('This certificate documents an electronic agreement acceptance recorded through the Legavora Publishing Platform.');
     field('Certificate reference', certificateReference);
     field('Agreement title', contract.title);
-
-    field(
-      'Agreement version',
-      `Version ${version.version_number}`
-    );
-
-    field('Accepted by', response.full_name);
-
-    field(
-      'Agreement issued',
-      formatDate(version.issued_at)
-    );
-
-    field(
-      'Electronic acceptance recorded',
-      formatDate(response.responded_at)
-    );
-
+    pair('Agreement version', `Version ${version.version_number}`, 'Accepted by', response.full_name);
+    pair('Agreement issued', formatDate(version.issued_at), 'Acceptance recorded', formatDate(response.responded_at));
     section('Electronic Acceptance Statement');
-
-    paragraph(
-      response.acceptance_statement,
-      10,
-      navy
-    );
-
+    paragraph(response.acceptance_statement, 10, navy);
     section('Document Integrity Record');
-
-    paragraph(
-      'The SHA-256 fingerprint stored with the acceptance record matches the fingerprint recorded for this agreement version.'
-    );
-
-    ensureSpace(45);
-
-    page.drawText('SHA-256 DOCUMENT FINGERPRINT', {
-      x: margin,
-      y,
-      size: 8,
-      font: bold,
-      color: slate,
-    });
-
-    y -= 18;
-
-    page.drawText(version.document_sha256, {
-      x: margin,
-      y,
-      size: 9,
-      font: mono,
-      color: navy,
-    });
-
-    y -= 28;
-
-    field('Agreement version ID', version.id);
-    field('Acceptance record ID', response.id);
-
+    paragraph('The SHA-256 fingerprint stored with the acceptance record matches the fingerprint recorded for this agreement version.', 9);
+    ensureSpace(32);
+    page.drawText('SHA-256 DOCUMENT FINGERPRINT', { x: margin, y, size: 8, font: bold, color: slate });
+    y -= 14;
+    page.drawText(version.document_sha256, { x: margin, y, size: 9, font: mono, color: navy });
+    y -= 23;
+    pair('Agreement version ID', version.id, 'Acceptance record ID', response.id);
     section('Certificate Notice');
-
-    paragraph(
-      'This certificate is a record of electronic acceptance. It does not replace the original agreement, constitute independent identity verification, or independently establish legal enforceability.',
-      9
-    );
-
-    paragraph(
-      'Retain this certificate together with the corresponding agreement document.',
-      9
-    );
+    paragraph('This certificate is a record of electronic acceptance. It does not replace the original agreement, constitute independent identity verification, or independently establish legal enforceability.', 9);
+    paragraph('Retain this certificate together with the corresponding agreement document.', 9);
 
     const pages = pdf.getPages();
 
     pages.forEach((pdfPage, index) => {
       pdfPage.drawLine({
-        start: { x: margin, y: 70 },
-        end: { x: width - margin, y: 70 },
-        thickness: 0.7,
+        start: { x: margin, y: 75 },
+        end: { x: width - margin, y: 75 },
+        thickness: 1,
         color: gold,
       });
 
@@ -480,7 +336,7 @@ export async function GET(
         'Legavora Global Services Ltd | RC 10009828',
         {
           x: margin,
-          y: 53,
+          y: 57,
           size: 8,
           font: bold,
           color: navy,
@@ -491,7 +347,7 @@ export async function GET(
         'legavora.com | hello@legavora.com',
         {
           x: margin,
-          y: 39,
+          y: 42,
           size: 8,
           font: regular,
           color: slate,
@@ -502,7 +358,7 @@ export async function GET(
         `${index + 1} / ${pages.length}`,
         {
           x: width - margin - 25,
-          y: 39,
+          y: 42,
           size: 8,
           font: regular,
           color: slate,
