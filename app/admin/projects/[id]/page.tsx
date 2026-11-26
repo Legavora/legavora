@@ -349,6 +349,35 @@ export default async function AdminProjectDetails({
     redirect(signed.signedUrl);
   }
 
+  async function issueAgreement(formData: FormData) {
+    'use server';
+    const versionId = String(formData.get('version_id') || '');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(versionId) || formData.get('confirm_issue') !== 'yes') {
+      throw new Error('Confirm issuance of a valid agreement version');
+    }
+    const { db, user } = await currentUser();
+    if (!user) redirect('/login');
+    const { data: profile, error: profileError } = await db.from('profiles')
+      .select('role').eq('id', user.id).single();
+    if (profileError || !profile || !['admin', 'manager'].includes(profile.role)) {
+      throw new Error('Management authorization required');
+    }
+    const { data: version, error: versionError } = await db.from('contract_versions')
+      .select('contract_id,status,issued_at').eq('id', versionId).single();
+    if (versionError || !version || version.status !== 'draft' || version.issued_at) {
+      throw new Error('Only unissued draft agreements can be issued');
+    }
+    const { data: contract, error: contractError } = await db.from('contracts')
+      .select('id').eq('id', version.contract_id).eq('project_id', id).single();
+    if (contractError || !contract) throw new Error('Contract not found in this project');
+    const { error } = await db.rpc('issue_contract', { p_contract_version_id: versionId });
+    if (error) throw new Error(`Unable to issue agreement: ${error.message}`);
+    revalidatePath(`/admin/projects/${id}`);
+    revalidatePath(`/dashboard/projects/${id}`);
+    revalidatePath('/dashboard');
+    redirect(`/admin/projects/${id}#contract-management`);
+  }
+
   const tasksByType = new Map(
     (productionTasks || []).map((task) => [
       task.task_type,
@@ -843,7 +872,7 @@ export default async function AdminProjectDetails({
       <DistributionManagement projectId={id} records={distributionRecords || []} />
 
       {/* CONTRACT MANAGEMENT */}
-      <section className="panel space-y-6">
+      <section id="contract-management" className="panel space-y-6">
         <div className="space-y-2">
           <h2>Contract Management Centre</h2>
           <p className="text-sm text-slate-600">
@@ -877,6 +906,19 @@ export default async function AdminProjectDetails({
                           Download Agreement (PDF)
                         </button>
                       </form>
+                      {version.status === 'draft' && !version.issued_at && (
+                        <form action={issueAgreement} className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                          <input type="hidden" name="version_id" value={version.id} />
+                          <p className="text-sm text-amber-900">Issuing this version makes the agreement available to the assigned author for review. Verify the document and recipient before proceeding.</p>
+                          <label className="flex items-start gap-2 text-sm text-slate-900">
+                            <input type="checkbox" name="confirm_issue" value="yes" required className="mt-1" />
+                            <span>I have reviewed this agreement and authorize its issuance to the assigned author.</span>
+                          </label>
+                          <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                            Issue Agreement to Author
+                          </button>
+                        </form>
+                      )}
                     </div>
                   ))
                 ) : <p className="text-sm">No document versions registered.</p>}
