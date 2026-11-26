@@ -201,6 +201,8 @@ export async function GET(request: NextRequest) {
     let page = pdf.addPage([width, height]);
     let y = height - 175;
 
+    const invoiceStatus = safeText(invoice.status).toUpperCase();
+
     function drawHeader() {
       const watermark = logo.scaleToFit(410, 360);
       page.drawImage(logo, {
@@ -218,7 +220,7 @@ export async function GET(request: NextRequest) {
       }
       right(heading, height - 55, 19);
       right(invoiceNumber, height - 79, 11, regular);
-      right(safeText(invoice.status).toUpperCase(), height - 100, 11);
+      right(invoiceStatus, height - 100, 11);
       page.drawLine({ start: { x: margin, y: height - 148 }, end: { x: width - margin, y: height - 148 }, thickness: 1.5, color: gold });
     }
 
