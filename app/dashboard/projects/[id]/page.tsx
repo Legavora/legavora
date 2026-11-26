@@ -205,11 +205,25 @@ export default async function Project({
         .order('version_number', { ascending: false })
     : { data: [], error: null };
 
+  const versionIds = (versions ?? []).map((version) => version.id);
+  const { data: responses, error: responsesError } = versionIds.length
+    ? await db.from('contract_responses')
+        .select('contract_version_id,decision,full_name,responded_at,acceptance_statement,document_sha256,response_notes')
+        .in('contract_version_id', versionIds)
+        .eq('author_id', user.id)
+    : { data: [], error: null };
+
+  const responseMap = new Map((responses ?? []).map((response) => [response.contract_version_id, response] as const));
+
   const issuedVersions = await Promise.all((versions ?? []).map(async (version) => {
     const { data, error } = await db.storage.from('contracts')
       .createSignedUrl(version.storage_path, 300, { download: version.file_name });
     return { ...version, downloadUrl: error ? null : data?.signedUrl ?? null };
   }));
+
+  if (responsesError) {
+    console.error('Unable to load agreement responses:', responsesError.message);
+  }
 
   if (productionError) {
     console.error(
@@ -565,6 +579,37 @@ export default async function Project({
                     ) : (
                       <p role="alert" className="text-sm text-red-700">Download unavailable. Refresh the page to try again.</p>
                     )}
+                    {(() => {
+                      const response = responseMap.get(version.id);
+                      if (responsesError) {
+                        return <p role="alert" className="text-sm text-red-700">Agreement response history is temporarily unavailable.</p>;
+                      }
+                      if (!response) {
+                        return ['accepted', 'declined'].includes(version.status) ? (
+                          <p role="alert" className="text-sm text-amber-800">The recorded response details are unavailable. Please contact Legavora.</p>
+                        ) : null;
+                      }
+                      const accepted = response.decision === 'accepted';
+                      const fingerprintMatches = /^[0-9a-f]{64}$/.test(version.document_sha256) && response.document_sha256 === version.document_sha256;
+                      const consentRecorded = accepted && Boolean(response.acceptance_statement?.trim());
+                      return (
+                        <section className={`rounded-lg border p-5 space-y-4 ${accepted ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-slate-50'}`}>
+                          <h4 className="font-semibold">{accepted ? 'Agreement Accepted' : 'Agreement Declined'}</h4>
+                          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                            <div><dt className="text-slate-600">{accepted ? 'Accepted by' : 'Declined by'}</dt><dd className="font-medium break-words">{response.full_name}</dd></div>
+                            <div><dt className="text-slate-600">Response date and time (UTC)</dt><dd className="font-medium">{response.responded_at ? new Date(response.responded_at).toLocaleString('en-GB', { timeZone: 'UTC', dateStyle: 'long', timeStyle: 'medium' }) : 'Unavailable'}</dd></div>
+                            <div><dt className="text-slate-600">Agreement version</dt><dd>Version {version.version_number}</dd></div>
+                            <div><dt className="text-slate-600">Electronic acceptance consent</dt><dd>{consentRecorded ? 'Recorded' : 'Not recorded'}</dd></div>
+                          </dl>
+                          <div className="border-t pt-3 text-sm space-y-2">
+                            <p className={fingerprintMatches ? 'text-green-800' : 'text-red-700'}>{fingerprintMatches ? 'Recorded document fingerprint matches the agreement version.' : 'Document fingerprint mismatch or unavailable. Please contact Legavora.'}</p>
+                            <p className="text-xs text-slate-600 break-all font-mono">SHA-256: {response.document_sha256}</p>
+                          </div>
+                          {consentRecorded && <div className="border-t pt-3 text-sm"><p className="font-medium">Recorded acceptance statement</p><p className="mt-2 whitespace-pre-wrap break-words">{response.acceptance_statement}</p></div>}
+                          {response.response_notes && <div className="border-t pt-3 text-sm"><p className="font-medium">Your response notes</p><p className="mt-2 whitespace-pre-wrap break-words">{response.response_notes}</p></div>}
+                        </section>
+                      );
+                    })()}
                     {version.status === 'awaiting_acceptance' && (
                       version.downloadUrl && /^[0-9a-f]{64}$/.test(version.document_sha256) ? (
                         <AuthorContractResponse
