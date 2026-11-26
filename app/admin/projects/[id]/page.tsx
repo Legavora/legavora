@@ -10,6 +10,7 @@ import ManagementDeliverableReview from '@/components/ManagementDeliverableRevie
 import DistributionManagement from '@/components/DistributionManagement';
 import AdminInvoiceCreate from '@/components/AdminInvoiceCreate';
 import AdminPaymentConfirmation from '@/components/AdminPaymentConfirmation';
+import AdminContractUpload from '@/components/AdminContractUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -296,6 +297,56 @@ export default async function AdminProjectDetails({
 
   if (distributionError) {
     throw new Error('Unable to load distribution records');
+  }
+
+  const { data: contracts, error: contractsError } = await db
+    .from('contracts')
+    .select('id,title,contract_type')
+    .eq('project_id', id);
+
+  const contractIds = (contracts || []).map((contract) => contract.id);
+  type ContractVersion = {
+    id: string;
+    contract_id: string;
+    version_number: number;
+    file_name: string;
+    storage_path: string;
+    status: string;
+    issued_at: string | null;
+  };
+  let contractVersions: ContractVersion[] = [];
+  let contractLoadError = Boolean(contractsError);
+
+  if (!contractLoadError && contractIds.length) {
+    const { data, error } = await db
+      .from('contract_versions')
+      .select('id,contract_id,version_number,file_name,storage_path,status,issued_at')
+      .in('contract_id', contractIds)
+      .order('version_number', { ascending: false });
+    contractLoadError = Boolean(error);
+    contractVersions = data || [];
+  }
+
+  async function downloadContract(formData: FormData) {
+    'use server';
+    const versionId = String(formData.get('version_id') || '');
+    const { db, user } = await currentUser();
+    if (!user) redirect('/login');
+    const { data: profile } = await db.from('profiles')
+      .select('role').eq('id', user.id).single();
+    if (!profile || !['admin', 'manager'].includes(profile.role)) {
+      throw new Error('Management authorization required');
+    }
+    const { data: version, error } = await db.from('contract_versions')
+      .select('contract_id,storage_path').eq('id', versionId).single();
+    if (error || !version) throw new Error('Contract version not found');
+    const { data: contract } = await db.from('contracts').select('id')
+      .eq('id', version.contract_id).eq('project_id', id).single();
+    if (!contract) throw new Error('Contract not found in this project');
+    const { data: signed, error: signingError } = await db.storage
+      .from('contracts').createSignedUrl(version.storage_path, 60, { download: true });
+    if (signingError || !signed?.signedUrl) throw new Error('Unable to download contract');
+    redirect(signed.signedUrl);
   }
 
   const tasksByType = new Map(
@@ -790,6 +841,50 @@ export default async function AdminProjectDetails({
 
       {/* DISTRIBUTION MANAGEMENT */}
       <DistributionManagement projectId={id} records={distributionRecords || []} />
+
+      {/* CONTRACT MANAGEMENT */}
+      <section className="panel space-y-6">
+        <div className="space-y-2">
+          <h2>Contract Management Centre</h2>
+          <p className="text-sm text-slate-600">
+            Manage confidential agreements and their document versions.
+            New agreements remain drafts until officially issued.
+          </p>
+        </div>
+        {contractLoadError ? (
+          <p role="alert" className="text-sm text-red-700">
+            Unable to load contract records. Refresh or contact management.
+          </p>
+        ) : (
+          <>
+            <AdminContractUpload projectId={id} />
+            <h3 className="font-semibold">Agreement History</h3>
+            {contracts?.length ? contracts.map((contract) => (
+              <article key={contract.id} className="rounded-lg border p-5 space-y-4">
+                <h4 className="font-semibold">{contract.title}</h4>
+                <p className="text-sm text-slate-600">{format(contract.contract_type)}</p>
+                {contractVersions.filter((version) => version.contract_id === contract.id).length ? (
+                  contractVersions.filter((version) => version.contract_id === contract.id).map((version) => (
+                    <div key={version.id} className="rounded-lg border p-4 space-y-2">
+                      <p className="font-semibold">Version {version.version_number} · {format(version.status)}</p>
+                      <p className="text-sm break-all">{version.file_name}</p>
+                      <p className="text-sm text-slate-600">
+                        {version.issued_at ? `Issued: ${formatDate(version.issued_at)}` : 'Not yet issued'}
+                      </p>
+                      <form action={downloadContract}>
+                        <input type="hidden" name="version_id" value={version.id} />
+                        <button type="submit" className="rounded-lg border px-4 py-2 text-sm font-semibold">
+                          Download Agreement (PDF)
+                        </button>
+                      </form>
+                    </div>
+                  ))
+                ) : <p className="text-sm">No document versions registered.</p>}
+              </article>
+            )) : <p className="text-sm text-slate-600">No agreements registered for this project.</p>}
+          </>
+        )}
+      </section>
 
       {/* PROJECT CONVERSATION */}
       <ProjectMessages projectId={id} />
