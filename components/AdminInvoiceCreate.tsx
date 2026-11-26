@@ -18,6 +18,7 @@ export default function AdminInvoiceCreate({
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -48,9 +49,11 @@ export default function AdminInvoiceCreate({
       return;
     }
 
-    const amountCents = Math.round(
-      Number(cleanAmount) * 100
-    );
+    const [whole, fraction = ''] = cleanAmount.split('.');
+
+    const amountCents =
+      Number(whole) * 100 +
+      Number(fraction.padEnd(2, '0'));
 
     if (
       !Number.isSafeInteger(amountCents) ||
@@ -58,6 +61,21 @@ export default function AdminInvoiceCreate({
     ) {
       setError('Enter a valid positive invoice amount.');
       return;
+    }
+
+    if (dueDate) {
+      const parsedDate = new Date(
+        `${dueDate}T00:00:00Z`
+      );
+
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ||
+        Number.isNaN(parsedDate.getTime()) ||
+        parsedDate.toISOString().slice(0, 10) !== dueDate
+      ) {
+        setError('Enter a valid payment due date.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -91,7 +109,10 @@ export default function AdminInvoiceCreate({
         );
       }
 
-      const { error: invoiceError } = await db
+      const {
+        data: invoice,
+        error: invoiceError,
+      } = await db
         .from('invoices')
         .insert({
           project_id: projectId,
@@ -101,8 +122,9 @@ export default function AdminInvoiceCreate({
           currency: 'USD',
           status: 'pending',
           paid_at: null,
+          due_date: dueDate || null,
         })
-        .select('id')
+        .select('id, invoice_number')
         .single();
 
       if (invoiceError) {
@@ -111,9 +133,14 @@ export default function AdminInvoiceCreate({
 
       setDescription('');
       setAmount('');
-      setSuccess('Invoice created successfully.');
+      setDueDate('');
+
+      setSuccess(
+        `Invoice ${invoice.invoice_number} created successfully.`
+      );
 
       router.refresh();
+
     } catch (err) {
       setError(
         err instanceof Error
@@ -131,9 +158,9 @@ export default function AdminInvoiceCreate({
         <h2>Create Service Invoice</h2>
 
         <p className="text-sm text-slate-600">
-          Create a USD invoice for publishing,
-          production, marketing or other agreed
-          Legavora services.
+          Create a professional USD invoice for
+          publishing, production, marketing or
+          other agreed Legavora services.
         </p>
       </div>
 
@@ -191,6 +218,39 @@ export default function AdminInvoiceCreate({
               className="w-full rounded-lg border bg-slate-50 p-3 text-slate-900"
             />
           </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold">
+              Payment Due Date (Optional)
+            </span>
+
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(event) =>
+                setDueDate(event.target.value)
+              }
+              disabled={loading}
+              className="w-full rounded-lg border bg-white p-3 text-slate-900"
+            />
+
+            <p className="text-xs text-slate-500">
+              Leave blank if no payment deadline
+              has been agreed.
+            </p>
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold">
+              Invoice Number
+            </span>
+
+            <input
+              value="Automatically generated"
+              readOnly
+              className="w-full rounded-lg border bg-slate-50 p-3 text-slate-900"
+            />
+          </label>
         </div>
 
         <div className="rounded-lg border bg-slate-50 p-4">
@@ -201,8 +261,9 @@ export default function AdminInvoiceCreate({
           <p className="mt-2 text-xs text-slate-600">
             Creating an invoice does not charge the
             author or confirm receipt of payment.
-            Online payment processing is not currently
-            enabled.
+            Live online payment activation is pending.
+            Manual payments must be independently
+            verified before confirmation.
           </p>
         </div>
 
