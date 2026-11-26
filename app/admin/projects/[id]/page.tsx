@@ -878,6 +878,19 @@ export default async function AdminProjectDetails({
                           Download Agreement (PDF)
                         </button>
                       </form>
+                      {version.status === 'accepted' && (
+                        <div className="pt-2 space-y-2">
+                          <a
+                            href={`/api/contracts/${encodeURIComponent(version.id)}/certificate`}
+                            className="inline-flex items-center justify-center rounded-lg border border-[#cba45b] bg-white px-4 py-3 text-sm font-semibold text-[#876329] hover:bg-amber-50"
+                          >
+                            Download Acceptance Certificate (PDF)
+                          </a>
+                          <p className="text-xs text-slate-600">
+                            Retain this certificate together with the corresponding agreement document.
+                          </p>
+                        </div>
+                      )}
                       {version.status === 'draft' && !version.issued_at && (
                         <AdminContractIssue
                           contractVersionId={version.id}
