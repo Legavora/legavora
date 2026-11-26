@@ -9,6 +9,7 @@ import ProjectStaffAssignments from '@/components/ProjectStaffAssignments';
 import ManagementDeliverableReview from '@/components/ManagementDeliverableReview';
 import DistributionManagement from '@/components/DistributionManagement';
 import AdminInvoiceCreate from '@/components/AdminInvoiceCreate';
+import AdminPaymentConfirmation from '@/components/AdminPaymentConfirmation';
 
 export const dynamic = 'force-dynamic';
 
@@ -189,7 +190,7 @@ export default async function AdminProjectDetails({
   const { data: invoices, error: invoicesError } = await db
     .from('invoices')
     .select(
-      'id,description,amount_cents,currency,status'
+      'id,description,amount_cents,currency,status,invoice_number,due_date,paid_at'
     )
     .eq('project_id', id)
     .order('created_at', {
@@ -821,6 +822,23 @@ export default async function AdminProjectDetails({
                 <p className="text-sm">
                   Status: {format(invoice.status)}
                 </p>
+                <p className="text-sm">Invoice: {invoice.invoice_number}</p>
+                {invoice.due_date && (
+                  <p className="text-sm">Due: {formatDate(invoice.due_date)}</p>
+                )}
+                {invoice.paid_at && (
+                  <p className="text-sm">Paid: {formatDate(invoice.paid_at)}</p>
+                )}
+                {profile.role === 'admin' && invoice.status === 'pending' && (
+                  <div className="mt-3">
+                    <AdminPaymentConfirmation
+                      invoiceId={invoice.id}
+                      invoiceNumber={invoice.invoice_number}
+                      amountCents={Number(invoice.amount_cents)}
+                      status={invoice.status}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
