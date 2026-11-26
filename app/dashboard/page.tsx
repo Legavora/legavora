@@ -3,6 +3,7 @@ import { currentUser } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Logout from '@/components/Logout';
+import NotificationBell from '@/components/NotificationBell';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,7 +136,10 @@ export default async function Dashboard() {
           </p>
         </div>
 
-        <Logout />
+        <div className="flex flex-wrap items-center gap-3">
+          <NotificationBell />
+          <Logout />
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-5 mt-10">
