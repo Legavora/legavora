@@ -8,6 +8,7 @@ import ProjectMessages from '@/components/ProjectMessages';
 import ProjectStaffAssignments from '@/components/ProjectStaffAssignments';
 import ManagementDeliverableReview from '@/components/ManagementDeliverableReview';
 import DistributionManagement from '@/components/DistributionManagement';
+import AdminInvoiceCreate from '@/components/AdminInvoiceCreate';
 
 export const dynamic = 'force-dynamic';
 
@@ -791,6 +792,8 @@ export default async function AdminProjectDetails({
 
       {/* PROJECT CONVERSATION */}
       <ProjectMessages projectId={id} />
+
+      <AdminInvoiceCreate projectId={id} authorId={project.author_id} />
 
       {/* PROJECT INVOICES */}
       <section className="panel space-y-4">
