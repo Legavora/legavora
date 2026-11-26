@@ -1,4 +1,5 @@
-
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { currentUser } from '@/lib/supabase';
@@ -167,10 +168,11 @@ export async function GET(request: NextRequest) {
       StandardFonts.HelveticaBold
     );
 
+    const logo = await pdf.embedPng(await readFile(path.join(process.cwd(), 'public', 'legavora-logo.png')));
+
     const navy = rgb(0.07, 0.13, 0.23);
     const gold = rgb(0.78, 0.62, 0.32);
     const grey = rgb(0.34, 0.38, 0.43);
-    const light = rgb(0.95, 0.96, 0.97);
     const white = rgb(1, 1, 1);
 
     const width = 595.28;
@@ -183,8 +185,8 @@ export async function GET(request: NextRequest) {
     );
 
     const amount = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: invoice.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(invoice.amount_cents / 100);
 
     const heading = isReceipt
@@ -197,74 +199,33 @@ export async function GET(request: NextRequest) {
     pdf.setCreator('Legavora Author Platform');
 
     let page = pdf.addPage([width, height]);
-    let y = height - 165;
+    let y = height - 175;
 
     function drawHeader() {
-      page.drawRectangle({
-        x: 0,
-        y: height - 125,
-        width,
-        height: 125,
-        color: navy,
+      const watermark = logo.scaleToFit(410, 360);
+      page.drawImage(logo, {
+        x: (width - watermark.width) / 2,
+        y: (height - watermark.height) / 2,
+        ...watermark,
+        opacity: 0.07,
       });
-
-      page.drawText('LEGAVORA', {
-        x: margin,
-        y: height - 47,
-        size: 28,
-        font: bold,
-        color: white,
-      });
-
-      page.drawText(
-        'Publishing, Marketing & Author Growth',
-        {
-          x: margin,
-          y: height - 69,
-          size: 10,
-          font: regular,
-          color: gold,
-        }
-      );
-
-      page.drawText(heading, {
-        x: margin,
-        y: height - 101,
-        size: 14,
-        font: bold,
-        color: white,
-      });
+      page.drawRectangle({ x: 0, y: height - 8, width, height: 8, color: navy });
+      page.drawRectangle({ x: 0, y: height - 11, width, height: 3, color: gold });
+      const mark = logo.scaleToFit(170, 105);
+      page.drawImage(logo, { x: margin, y: height - 132, ...mark });
+      function right(text: string, baseline: number, size: number, font = bold) {
+        page.drawText(text, { x: width - margin - font.widthOfTextAtSize(text, size), y: baseline, size, font, color: navy });
+      }
+      right(heading, height - 55, 19);
+      right(invoiceNumber, height - 79, 11, regular);
+      right(safeText(invoice.status).toUpperCase(), height - 100, 11);
+      page.drawLine({ start: { x: margin, y: height - 148 }, end: { x: width - margin, y: height - 148 }, thickness: 1.5, color: gold });
     }
 
     function drawFooter() {
-      page.drawLine({
-        start: { x: margin, y: 75 },
-        end: { x: width - margin, y: 75 },
-        thickness: 1,
-        color: gold,
-      });
-
-      page.drawText(
-        'Legavora Global Services Ltd | RC 10009828',
-        {
-          x: margin,
-          y: 57,
-          size: 9,
-          font: bold,
-          color: navy,
-        }
-      );
-
-      page.drawText(
-        'legavora.com | hello@legavora.com',
-        {
-          x: margin,
-          y: 42,
-          size: 9,
-          font: regular,
-          color: grey,
-        }
-      );
+      page.drawLine({ start: { x: margin, y: 75 }, end: { x: width - margin, y: 75 }, thickness: 1, color: gold });
+      page.drawText('Legavora Global Services Ltd | RC 10009828', { x: margin, y: 57, size: 9, font: bold, color: navy });
+      page.drawText('legavora.com | hello@legavora.com', { x: margin, y: 42, size: 9, font: regular, color: grey });
     }
 
     function ensureSpace(required: number) {
@@ -272,7 +233,7 @@ export async function GET(request: NextRequest) {
         drawFooter();
         page = pdf.addPage([width, height]);
         drawHeader();
-        y = height - 155;
+        y = height - 175;
       }
     }
 
@@ -324,149 +285,67 @@ export async function GET(request: NextRequest) {
       return lines.length ? lines : ['Not specified'];
     }
 
-    function drawField(
-      label: string,
-      value: unknown
-    ) {
+    function drawField(label: string, value: unknown) {
       ensureSpace(45);
-
-      page.drawText(label.toUpperCase(), {
-        x: margin,
-        y,
-        size: 9,
-        font: bold,
-        color: grey,
-      });
-
+      page.drawText(label.toUpperCase(), { x: margin, y, size: 9, font: bold, color: grey });
       y -= 18;
-
-      const lines = wrapText(
-        value,
-        contentWidth,
-        11
-      );
-
-      for (const line of lines) {
+      for (const line of wrapText(value, contentWidth, 11)) {
         ensureSpace(18);
-
-        page.drawText(line, {
-          x: margin,
-          y,
-          size: 11,
-          font: regular,
-          color: navy,
-        });
-
+        page.drawText(line, { x: margin, y, size: 11, font: regular, color: navy });
         y -= 16;
       }
-
       y -= 12;
     }
 
+    function drawPair(leftLabel: string, leftValue: unknown, rightLabel: string, rightValue: unknown) {
+      const colWidth = (contentWidth - 28) / 2;
+      const left = wrapText(leftValue, colWidth, 11);
+      const right = wrapText(rightValue, colWidth, 11);
+      const required = 30 + Math.max(left.length, right.length) * 16;
+      if (required > 540) {
+        drawField(leftLabel, leftValue);
+        drawField(rightLabel, rightValue);
+        return;
+      }
+      ensureSpace(required);
+      const x2 = margin + colWidth + 28;
+      page.drawText(leftLabel.toUpperCase(), { x: margin, y, size: 9, font: bold, color: grey });
+      page.drawText(rightLabel.toUpperCase(), { x: x2, y, size: 9, font: bold, color: grey });
+      left.forEach((line, i) => page.drawText(line, { x: margin, y: y - 18 - i * 16, size: 11, font: regular, color: navy }));
+      right.forEach((line, i) => page.drawText(line, { x: x2, y: y - 18 - i * 16, size: 11, font: regular, color: navy }));
+      y -= required;
+    }
+
     drawHeader();
-
-    drawField('Invoice Number', invoiceNumber);
-
-    drawField(
-      'Issued By',
-      'Legavora Global Services Ltd'
-    );
-
-    drawField(
-      'Billed To',
-      author?.full_name || 'Registered Author'
-    );
-
-    if (author?.author_number) {
-      drawField(
-        'Author Number',
-        `#${author.author_number}`
-      );
+    drawPair('Issued By', 'Legavora Global Services Ltd', 'Billed To', author?.full_name || 'Registered Author');
+    drawPair('Author Number', author?.author_number ? `#${author.author_number}` : 'Not assigned', 'Publishing Project', projectTitle);
+    drawPair('Invoice Issue Date', formatDate(invoice.created_at), 'Payment Due Date', formatDate(invoice.due_date));
+    if (isReceipt) {
+      drawPair('Payment Confirmation Date', formatDate(invoice.paid_at), 'Payment Method', invoice.payment_method ? invoice.payment_method.replace(/_/g, ' ').replace(/\b\w/g, (letter: string) => letter.toUpperCase()) : 'Recorded payment');
     }
 
-    drawField('Publishing Project', projectTitle);
-
-    drawField(
-      'Invoice Issue Date',
-      formatDate(invoice.created_at)
-    );
-
-    if (invoice.due_date) {
-      drawField(
-        'Payment Due Date',
-        formatDate(invoice.due_date)
-      );
+    ensureSpace(65);
+    page.drawRectangle({ x: margin, y: y - 8, width: contentWidth, height: 24, color: navy });
+    page.drawText('SERVICE DESCRIPTION', { x: margin + 10, y, size: 10, font: bold, color: white });
+    y -= 32;
+    for (const line of wrapText(invoice.description || 'Publishing Services', contentWidth - 20, 11)) {
+      ensureSpace(18);
+      page.drawText(line, { x: margin + 10, y, size: 11, font: regular, color: navy });
+      y -= 16;
     }
-
-    drawField(
-      'Payment Status',
-      invoice.status.toUpperCase()
-    );
-
-    drawField(
-      'Service Description',
-      invoice.description || 'Publishing Services'
-    );
+    y -= 15;
 
     ensureSpace(90);
-
-    page.drawRectangle({
-      x: margin,
-      y: y - 62,
-      width: contentWidth,
-      height: 76,
-      color: light,
-    });
-
-    page.drawText(
-      isReceipt ? 'TOTAL PAYMENT RECEIVED' : 'TOTAL INVOICE AMOUNT',
-      {
-        x: margin + 15,
-        y: y - 8,
-        size: 10,
-        font: bold,
-        color: grey,
-      }
-    );
-
-    page.drawText(
-      `${invoice.currency} ${amount}`,
-      {
-        x: margin + 15,
-        y: y - 38,
-        size: 24,
-        font: bold,
-        color: navy,
-      }
-    );
-
+    page.drawRectangle({ x: margin, y: y - 62, width: contentWidth, height: 76, color: navy });
+    page.drawText(isReceipt ? 'TOTAL PAYMENT RECEIVED' : 'TOTAL INVOICE AMOUNT', { x: margin + 15, y: y - 8, size: 10, font: bold, color: gold });
+    page.drawText(`${invoice.currency} ${amount}`, { x: margin + 15, y: y - 38, size: 24, font: bold, color: white });
     y -= 90;
 
-    if (isReceipt) {
-      drawField(
-        'Payment Confirmation Date',
-        formatDate(invoice.paid_at)
-      );
-
-      drawField(
-        'Payment Method',
-        invoice.payment_method
-          ? invoice.payment_method.replace(/_/g, ' ')
-          : 'Recorded payment'
-      );
-
-      drawField(
-        'Confirmation',
-        'This receipt acknowledges the recorded full payment of the referenced invoice.'
-      );
-    } else {
-      drawField(
-        'Payment Information',
-        invoice.status === 'paid'
-          ? 'This invoice has been recorded as paid.'
-          : 'Please contact Legavora for approved payment instructions.'
-      );
-    }
+    drawField(isReceipt ? 'Payment Confirmation' : 'Payment Information', isReceipt
+      ? 'This receipt acknowledges the recorded full payment of the referenced invoice.'
+      : invoice.status === 'paid' ? 'This invoice has been recorded as paid.'
+      : invoice.status === 'pending' ? 'Please contact Legavora for approved payment instructions.'
+      : `Current invoice status: ${safeText(invoice.status)}. Contact Legavora for clarification.`);
 
     drawFooter();
 
