@@ -829,6 +829,22 @@ export default async function AdminProjectDetails({
                 {invoice.paid_at && (
                   <p className="text-sm">Paid: {formatDate(invoice.paid_at)}</p>
                 )}
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <a
+                    href={`/api/invoices/download?id=${encodeURIComponent(invoice.id)}&type=invoice`}
+                    className="rounded-lg border px-4 py-2 text-sm font-semibold"
+                  >
+                    Download Invoice (PDF)
+                  </a>
+                  {invoice.status === 'paid' && invoice.paid_at && (
+                    <a
+                      href={`/api/invoices/download?id=${encodeURIComponent(invoice.id)}&type=receipt`}
+                      className="rounded-lg border px-4 py-2 text-sm font-semibold"
+                    >
+                      Download Receipt (PDF)
+                    </a>
+                  )}
+                </div>
                 {profile.role === 'admin' && invoice.status === 'pending' && (
                   <div className="mt-3">
                     <AdminPaymentConfirmation
