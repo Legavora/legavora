@@ -7,6 +7,7 @@ import AdminProofUpload from '@/components/AdminProofUpload';
 import ProjectMessages from '@/components/ProjectMessages';
 import ProjectStaffAssignments from '@/components/ProjectStaffAssignments';
 import ManagementDeliverableReview from '@/components/ManagementDeliverableReview';
+import DistributionManagement from '@/components/DistributionManagement';
 
 export const dynamic = 'force-dynamic';
 
@@ -284,6 +285,16 @@ export default async function AdminProjectDetails({
     specialist_name: specialistNames.get(item.submitted_by) || 'Legavora Specialist',
     assignment_role: assignmentRoles.get(item.assignment_id) || 'specialist',
   }));
+
+  const { data: distributionRecords, error: distributionError } = await db
+    .from('distribution_records')
+    .select('id,platform,book_format,status,isbn,external_identifier,retailer_url,submitted_at,published_at,updated_at')
+    .eq('project_id', id)
+    .order('updated_at', { ascending: false });
+
+  if (distributionError) {
+    throw new Error('Unable to load distribution records');
+  }
 
   const tasksByType = new Map(
     (productionTasks || []).map((task) => [
@@ -774,6 +785,9 @@ export default async function AdminProjectDetails({
           <p>No proof approval requests have been recorded for this project.</p>
         )}
       </section>
+
+      {/* DISTRIBUTION MANAGEMENT */}
+      <DistributionManagement projectId={id} records={distributionRecords || []} />
 
       {/* PROJECT CONVERSATION */}
       <ProjectMessages projectId={id} />
