@@ -71,7 +71,7 @@ export default async function NotificationsPage({
       : 'notifications';
 
   const notificationPage =
-    '/dashboard/notification';
+    '/dashboard/notifications';
 
   const tabs = [
     {
