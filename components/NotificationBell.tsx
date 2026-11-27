@@ -1,168 +1,170 @@
 
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import {
-  ArrowLeft,
-  Bell,
-  Settings,
-} from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Bell } from 'lucide-react';
+import { browserDb } from '@/lib/supabase-browser';
 
-import { currentUser } from '@/lib/supabase';
-import NotificationCentre from '@/components/NotificationCentre';
-import NotificationPreferences from '@/components/NotificationPreferences';
+export default function NotificationBell() {
+  const pathname = usePathname();
 
-export const dynamic = 'force-dynamic';
+  const [unreadCount, setUnreadCount] =
+    useState(0);
 
-export const metadata = {
-  title: 'Notification Centre | Legavora',
-  description:
-    'View your secure Legavora account notifications and manage your email communication preferences.',
-};
+  const [loading, setLoading] =
+    useState(true);
 
-type PageProps = {
-  searchParams: Promise<{
-    tab?: string | string[];
-  }>;
-};
+  const [available, setAvailable] =
+    useState(false);
 
-export default async function NotificationsPage({
-  searchParams,
-}: PageProps) {
-  const { db, user } = await currentUser();
+  const loadUnreadCount = useCallback(
+    async () => {
+      try {
+        const db = browserDb();
 
-  if (!user) {
-    redirect('/login');
-  }
+        const {
+          data: { user },
+          error: authError,
+        } = await db.auth.getUser();
 
-  const { data: profile, error } = await db
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+        if (authError || !user) {
+          setUnreadCount(0);
+          setAvailable(false);
+          return;
+        }
 
-  if (error || !profile) {
-    redirect('/dashboard');
-  }
+        const { count, error } = await db
+          .from('notifications')
+          .select('id', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('recipient_id', user.id)
+          .is('read_at', null);
 
-  const allowedRoles = [
-    'author',
-    'specialist',
-    'manager',
-    'admin',
-  ];
+        if (error) {
+          throw error;
+        }
 
-  if (!allowedRoles.includes(profile.role)) {
-    redirect('/dashboard');
-  }
-
-  const dashboardUrl =
-    profile.role === 'admin' ||
-    profile.role === 'manager'
-      ? '/admin'
-      : profile.role === 'specialist'
-        ? '/staff'
-        : '/dashboard';
-
-  const params = await searchParams;
-
-  const activeTab =
-    params.tab === 'preferences'
-      ? 'preferences'
-      : 'notifications';
-
-  const notificationPage =
-    '/dashboard/notifications';
-
-  const tabs = [
-    {
-      value: 'notifications',
-      label: 'Notifications',
-      href: notificationPage,
-      icon: Bell,
+        setUnreadCount(count ?? 0);
+        setAvailable(true);
+      } catch {
+        setAvailable(false);
+      } finally {
+        setLoading(false);
+      }
     },
-    {
-      value: 'preferences',
-      label: 'Email Preferences',
-      href: `${notificationPage}?tab=preferences`,
-      icon: Settings,
-    },
-  ] as const;
+    []
+  );
+
+  useEffect(() => {
+    void loadUnreadCount();
+
+    const interval = window.setInterval(
+      () => {
+        if (
+          document.visibilityState === 'visible'
+        ) {
+          void loadUnreadCount();
+        }
+      },
+      30000
+    );
+
+    function handleFocus() {
+      void loadUnreadCount();
+    }
+
+    function handleVisibilityChange() {
+      if (
+        document.visibilityState === 'visible'
+      ) {
+        void loadUnreadCount();
+      }
+    }
+
+    window.addEventListener(
+      'focus',
+      handleFocus
+    );
+
+    document.addEventListener(
+      'visibilitychange',
+      handleVisibilityChange
+    );
+
+    return () => {
+      window.clearInterval(interval);
+
+      window.removeEventListener(
+        'focus',
+        handleFocus
+      );
+
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityChange
+      );
+    };
+  }, [loadUnreadCount]);
+
+  useEffect(() => {
+    void loadUnreadCount();
+  }, [pathname, loadUnreadCount]);
+
+  const displayCount =
+    unreadCount > 99
+      ? '99+'
+      : String(unreadCount);
+
+  const accessibleLabel = loading
+    ? 'Notifications, loading unread count'
+    : !available
+      ? 'Notifications, unread count unavailable'
+      : `Notifications, ${unreadCount} unread`;
 
   return (
-    <main className="min-h-screen bg-[#f3f0e9] px-4 py-10 sm:px-6 lg:px-8">
+    <Link
+      href="/dashboard/notifications"
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
+      className="group inline-flex items-center gap-3 rounded-xl border border-[#e3dfd6] bg-white px-4 py-3 text-[#102030] transition hover:border-[#b88b45] hover:bg-[#faf7f0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a77b36]"
+    >
+      <span className="relative inline-flex items-center justify-center">
 
-      <div className="mx-auto max-w-6xl space-y-6">
+        <Bell
+          size={22}
+          strokeWidth={1.8}
+          aria-hidden="true"
+          className="text-[#a77b36] transition group-hover:text-[#916722]"
+        />
 
-        <Link
-          href={dashboardUrl}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-[#102030] transition hover:text-[#a77b36]"
-        >
-          <ArrowLeft size={17} />
-          Back to Dashboard
-        </Link>
-
-        <header className="rounded-2xl border border-[#e3dfd6] bg-white p-6 sm:p-8">
-
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#a77b36]">
-            Legavora Account Communications
-          </p>
-
-          <h1 className="font-serif text-3xl text-[#102030] sm:text-4xl">
-            Communications Centre
-          </h1>
-
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-            Stay connected with your publishing
-            activities, important account updates
-            and communication preferences through
-            your secure Legavora account.
-          </p>
-
-        </header>
-
-        <nav
-          aria-label="Notification navigation"
-          className="flex flex-wrap gap-3 rounded-xl border border-[#e3dfd6] bg-white p-3"
-        >
-
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-
-            const isActive =
-              activeTab === tab.value;
-
-            return (
-              <Link
-                key={tab.value}
-                href={tab.href}
-                aria-current={
-                  isActive ? 'page' : undefined
-                }
-                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-sm font-semibold transition sm:flex-none ${
-                  isActive
-                    ? 'bg-[#102030] text-white'
-                    : 'border border-[#e3dfd6] bg-white text-slate-700 hover:bg-[#f5f2eb] hover:text-[#102030]'
-                }`}
-              >
-
-                <Icon size={19} />
-
-                {tab.label}
-
-              </Link>
-            );
-          })}
-
-        </nav>
-
-        {activeTab === 'preferences' ? (
-          <NotificationPreferences />
-        ) : (
-          <NotificationCentre />
+        {available && unreadCount > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#b88b45]"
+          />
         )}
 
-      </div>
+      </span>
 
-    </main>
+      <span className="text-sm font-semibold">
+        Notifications
+      </span>
+
+      {!loading &&
+        available &&
+        unreadCount > 0 && (
+          <span
+            aria-hidden="true"
+            className="inline-flex min-w-[25px] items-center justify-center rounded-full bg-[#102030] px-2 py-1 text-xs font-semibold text-white"
+          >
+            {displayCount}
+          </span>
+        )}
+
+    </Link>
   );
 }
